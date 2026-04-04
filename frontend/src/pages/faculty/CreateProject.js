@@ -1,0 +1,190 @@
+import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { projectAPI, classroomAPI } from '../../services/api';
+
+const CreateProject = () => {
+  const navigate = useNavigate();
+  const [classrooms, setClassrooms] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [success, setSuccess] = useState('');
+  const [error, setError] = useState('');
+  const [formData, setFormData] = useState({
+    projectTitle: '',
+    subject: '',
+    classroomId: '',
+    deadline: '',
+    maxTeamSize: 3,
+  });
+
+  useEffect(() => {
+    fetchClassrooms();
+  }, []);
+
+  const fetchClassrooms = async () => {
+    try {
+      const response = await classroomAPI.getAllClassrooms();
+      setClassrooms(response.data.data);
+    } catch (err) {
+      setError('Failed to fetch classrooms');
+    }
+  };
+
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+    setFormData(prev => ({
+      ...prev,
+      [name]: value
+    }));
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+    setError('');
+    setSuccess('');
+
+    try {
+      await projectAPI.createProject(formData);
+      setSuccess('✅ Project created successfully!');
+      setFormData({
+        projectTitle: '',
+        subject: '',
+        classroomId: '',
+        deadline: '',
+        maxTeamSize: 3,
+      });
+      setTimeout(() => setSuccess(''), 5000);
+    } catch (err) {
+      setError(err.response?.data?.message || 'Failed to create project');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="p-8 bg-gradient-to-br from-slate-900 to-slate-800 min-h-screen">
+      <div className="max-w-3xl mx-auto">
+        <button
+          onClick={() => navigate('/faculty/dashboard?tab=overview')}
+          className="mb-4 px-4 py-2 bg-gray-600 text-white rounded hover:bg-gray-700 flex items-center gap-2"
+        >
+          ← Back to Dashboard
+        </button>
+        <div className="mb-8">
+          <h1 className="text-4xl font-bold text-white mb-2">➕ Create New Project</h1>
+          <p className="text-green-300/70">Design a project for your classroom</p>
+        </div>
+
+        {error && (
+          <div className="mb-6 p-4 bg-red-500/20 border border-red-500/50 text-red-300 rounded-xl">
+            {error}
+          </div>
+        )}
+
+        {success && (
+          <div className="mb-6 p-4 bg-green-500/20 border border-green-500/50 text-green-300 rounded-xl animate-pulse">
+            {success}
+          </div>
+        )}
+
+        <div className="bg-slate-800 rounded-2xl shadow-2xl p-8 border border-green-500/20">
+          <form onSubmit={handleSubmit} className="space-y-8">
+            <div>
+              <label className="block text-sm font-semibold text-green-300 mb-3">
+                Project Title <span className="text-green-400">*</span>
+              </label>
+              <input
+                type="text"
+                name="projectTitle"
+                value={formData.projectTitle}
+                onChange={handleChange}
+                placeholder="e.g., Hospital Management System"
+                minLength="5"
+                required
+                className="w-full px-5 py-3 bg-slate-700 border border-green-500/30 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-green-500 transition"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-semibold text-green-300 mb-3">
+                Subject <span className="text-green-400">*</span>
+              </label>
+              <input
+                type="text"
+                name="subject"
+                value={formData.subject}
+                onChange={handleChange}
+                placeholder="e.g., Database Management"
+                minLength="3"
+                required
+                className="w-full px-5 py-3 bg-slate-700 border border-green-500/30 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-green-500 transition"
+              />
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+              <div>
+                <label className="block text-sm font-semibold text-green-300 mb-3">
+                  Assign to Classroom <span className="text-green-400">*</span>
+                </label>
+                <select
+                  name="classroomId"
+                  value={formData.classroomId}
+                  onChange={handleChange}
+                  required
+                  className="w-full px-5 py-3 bg-slate-700 border border-green-500/30 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-green-500 transition"
+                >
+                  <option value="">Select Classroom</option>
+                  {classrooms.map(classroom => (
+                    <option key={classroom._id} value={classroom._id}>
+                      {classroom.department} - Y{classroom.year} S{classroom.section}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-semibold text-green-300 mb-3">
+                  Max Team Size <span className="text-green-400">*</span>
+                </label>
+                <input
+                  type="number"
+                  name="maxTeamSize"
+                  value={formData.maxTeamSize}
+                  onChange={handleChange}
+                  min="1"
+                  max="10"
+                  required
+                  className="w-full px-5 py-3 bg-slate-700 border border-green-500/30 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-green-500 transition"
+                />
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-sm font-semibold text-green-300 mb-3">
+                Deadline <span className="text-green-400">*</span>
+              </label>
+              <input
+                type="date"
+                name="deadline"
+                value={formData.deadline}
+                onChange={handleChange}
+                required
+                className="w-full px-5 py-3 bg-slate-700 border border-green-500/30 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-green-500 transition"
+              />
+            </div>
+
+            <button
+              type="submit"
+              disabled={loading}
+              className="w-full bg-gradient-to-r from-green-600 to-green-600 hover:from-green-700 hover:to-green-700 disabled:from-green-400 disabled:to-green-400 text-white font-semibold py-3 px-6 rounded-lg transition-all duration-300 transform hover:scale-105 disabled:cursor-not-allowed"
+            >
+              {loading ? '⏳ Creating...' : '🚀 Create Project'}
+            </button>
+          </form>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default CreateProject;
