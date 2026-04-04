@@ -3,6 +3,7 @@ const router = express.Router();
 const {
   createClassroom,
   getAllClassrooms,
+  getMyClassrooms,
   getClassroomById,
   updateClassroom,
   deleteClassroom,
@@ -22,6 +23,13 @@ router.post('/', authMiddleware, adminOnly, createClassroom);
  * All authenticated users (faculty needs this for project creation)
  */
 router.get('/', authMiddleware, getAllClassrooms);
+
+/**
+ * GET /api/classrooms/my
+ * Get classrooms assigned to the logged-in faculty
+ * Faculty and Admin
+ */
+router.get('/my', authMiddleware, getMyClassrooms);
 
 /**
  * GET /api/classrooms/:id

@@ -22,10 +22,10 @@ const CreateProject = () => {
 
   const fetchClassrooms = async () => {
     try {
-      const response = await classroomAPI.getAllClassrooms();
+      const response = await classroomAPI.getMyClassrooms();
       setClassrooms(response.data.data);
     } catch (err) {
-      setError('Failed to fetch classrooms');
+      setError('Failed to fetch classrooms. Ensure you are assigned to classrooms.');
     }
   };
 
@@ -136,7 +136,7 @@ const CreateProject = () => {
                   <option value="">Select Classroom</option>
                   {classrooms.map(classroom => (
                     <option key={classroom._id} value={classroom._id}>
-                      {classroom.department} - Y{classroom.year} S{classroom.section}
+                      {classroom.department} - Year {classroom.year} - Section {classroom.section}
                     </option>
                   ))}
                 </select>

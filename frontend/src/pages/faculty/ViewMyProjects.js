@@ -2,6 +2,9 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { projectAPI } from '../../services/api';
 
+const formatClassroom = (c) =>
+  c ? `${c.department} - Year ${c.year} - Section ${c.section}` : '—';
+
 const ViewMyProjects = () => {
   const navigate = useNavigate();
   const [projects, setProjects] = useState([]);
@@ -35,12 +38,12 @@ const ViewMyProjects = () => {
 
   const getStatusColor = (status) => {
     const colors = {
-      not_started: 'bg-gray-100 text-gray-800',
-      in_progress: 'bg-green-100 text-green-800',
-      submitted: 'bg-green-100 text-green-800',
-      evaluated: 'bg-green-100 text-green-800',
+      not_started: 'bg-gray-500/20 text-gray-300 border-gray-500/30',
+      in_progress: 'bg-blue-500/20 text-blue-300 border-blue-500/30',
+      submitted: 'bg-yellow-500/20 text-yellow-300 border-yellow-500/30',
+      evaluated: 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30',
     };
-    return colors[status] || 'bg-gray-100 text-gray-800';
+    return colors[status] || 'bg-gray-500/20 text-gray-300 border-gray-500/30';
   };
 
   const getStatusLabel = (status) => {
@@ -53,98 +56,92 @@ const ViewMyProjects = () => {
     return labels[status] || status;
   };
 
+  const filterButtons = [
+    { label: 'All', value: '' },
+    { label: 'Not Started', value: 'not_started' },
+    { label: 'In Progress', value: 'in_progress' },
+    { label: 'Submitted', value: 'submitted' },
+    { label: 'Evaluated', value: 'evaluated' },
+  ];
+
   return (
-    <div className="p-6">
+    <div className="p-8 bg-gradient-to-br from-slate-900 to-slate-800 min-h-screen">
       <button
         onClick={() => navigate('/faculty/dashboard?tab=overview')}
-        className="mb-4 px-4 py-2 bg-gray-600 text-white rounded hover:bg-gray-700 flex items-center gap-2"
+        className="inline-flex items-center gap-2 text-green-400 hover:text-green-300 mb-6 transition-colors"
       >
-        ← Back to Dashboard
+        <span className="text-2xl">←</span>
+        <span className="font-semibold">Back to Dashboard</span>
       </button>
-      <div className="mb-6">
-        <h1 className="text-3xl font-bold text-gray-800 mb-4">My Projects</h1>
+      <div className="mb-8">
+        <h1 className="text-4xl font-bold text-white mb-4">📋 My Projects</h1>
         <div className="flex gap-2 flex-wrap">
-          <button
-            onClick={() => setFilterStatus('')}
-            className={`px-4 py-2 rounded-lg ${!filterStatus ? 'bg-green-600 text-white' : 'bg-gray-200 text-gray-800'}`}
-          >
-            All ({projects.length})
-          </button>
-          <button
-            onClick={() => setFilterStatus('not_started')}
-            className={`px-4 py-2 rounded-lg ${filterStatus === 'not_started' ? 'bg-gray-600 text-white' : 'bg-gray-200 text-gray-800'}`}
-          >
-            Not Started
-          </button>
-          <button
-            onClick={() => setFilterStatus('in_progress')}
-            className={`px-4 py-2 rounded-lg ${filterStatus === 'in_progress' ? 'bg-green-600 text-white' : 'bg-gray-200 text-gray-800'}`}
-          >
-            In Progress
-          </button>
-          <button
-            onClick={() => setFilterStatus('submitted')}
-            className={`px-4 py-2 rounded-lg ${filterStatus === 'submitted' ? 'bg-green-600 text-white' : 'bg-gray-200 text-gray-800'}`}
-          >
-            Submitted
-          </button>
-          <button
-            onClick={() => setFilterStatus('evaluated')}
-            className={`px-4 py-2 rounded-lg ${filterStatus === 'evaluated' ? 'bg-green-600 text-white' : 'bg-gray-200 text-gray-800'}`}
-          >
-            Evaluated
-          </button>
+          {filterButtons.map(btn => (
+            <button
+              key={btn.value}
+              onClick={() => setFilterStatus(btn.value)}
+              className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-300 ${
+                filterStatus === btn.value
+                  ? 'bg-gradient-to-r from-green-600 to-emerald-600 text-white shadow-lg'
+                  : 'bg-slate-700/50 text-gray-300 hover:bg-slate-700 border border-slate-600/30'
+              }`}
+            >
+              {btn.label}
+            </button>
+          ))}
         </div>
       </div>
 
       {error && (
-        <div className="mb-4 p-4 bg-green-100 border border-green-400 text-green-700 rounded">
+        <div className="mb-6 p-4 bg-red-500/20 border border-red-500/50 text-red-300 rounded-xl">
           {error}
         </div>
       )}
 
       {loading ? (
-        <div className="text-center py-8">
-          <p className="text-gray-600">Loading projects...</p>
+        <div className="text-center py-12">
+          <div className="w-12 h-12 border-4 border-green-500/30 border-t-green-500 rounded-full animate-spin mx-auto"></div>
+          <p className="text-green-300 mt-4">Loading projects...</p>
         </div>
       ) : projects.length === 0 ? (
-        <div className="text-center py-8">
-          <p className="text-gray-600">No projects found</p>
+        <div className="text-center py-12 bg-slate-800 rounded-2xl border border-green-500/20">
+          <div className="text-5xl mb-4">📋</div>
+          <p className="text-green-300/70 text-lg">No projects found</p>
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {projects.map(project => (
-            <div key={project._id} className="bg-white rounded-lg shadow-md p-6 border-l-4 border-green-500">
+            <div key={project._id} className="bg-slate-800 rounded-2xl shadow-lg p-6 border-l-4 border-green-500 border-r border-t border-b border-r-green-500/10 border-t-green-500/10 border-b-green-500/10 hover:border-r-green-500/30 hover:border-t-green-500/30 hover:border-b-green-500/30 transition-all duration-300">
               <div className="flex justify-between items-start mb-3">
                 <div>
-                  <h3 className="text-lg font-semibold text-gray-800">{project.projectTitle}</h3>
-                  <p className="text-gray-600 text-sm">Subject: {project.subject}</p>
+                  <h3 className="text-lg font-bold text-white">{project.projectTitle}</h3>
+                  <p className="text-green-300/70 text-sm">Subject: {project.subject}</p>
                 </div>
-                <span className={`px-3 py-1 rounded-full text-xs font-medium whitespace-nowrap ${getStatusColor(project.status)}`}>
+                <span className={`px-3 py-1 rounded-full text-xs font-semibold whitespace-nowrap border ${getStatusColor(project.status)}`}>
                   {getStatusLabel(project.status)}
                 </span>
               </div>
 
-              <div className="grid grid-cols-2 gap-4 mb-4 text-xs text-gray-500">
+              <div className="grid grid-cols-2 gap-4 mb-4 text-xs">
                 <div>
-                  <p>Team Members</p>
-                  <p className="text-gray-800 font-medium">{project.teamMembers?.length || 0}/{project.maxTeamSize}</p>
+                  <p className="text-green-300/70">Team Members</p>
+                  <p className="text-white font-medium">{project.teamMembers?.length || 0}/{project.maxTeamSize}</p>
                 </div>
                 <div>
-                  <p>Deadline</p>
-                  <p className="text-gray-800 font-medium">{new Date(project.deadline).toLocaleDateString()}</p>
+                  <p className="text-green-300/70">Deadline</p>
+                  <p className="text-white font-medium">{new Date(project.deadline).toLocaleDateString()}</p>
                 </div>
               </div>
 
-              <div className="mb-4 p-2 bg-gray-50 rounded text-xs">
-                <p className="text-gray-600">
-                  <strong>Class:</strong> {project.classroomId?.department} - Year {project.classroomId?.year}
+              <div className="mb-4 p-2 bg-slate-700/50 rounded-lg border border-slate-600/30 text-xs">
+                <p className="text-green-300/70">
+                  <strong>Class:</strong> {formatClassroom(project.classroomId)}
                 </p>
               </div>
 
               <button
                 onClick={() => setSelectedProject(project)}
-                className="w-full bg-green-600 hover:bg-green-700 text-white py-2 px-4 rounded text-sm font-medium"
+                className="w-full bg-green-600 hover:bg-green-700 text-white py-2 px-4 rounded-lg text-sm font-semibold transition-all transform hover:scale-105"
               >
                 View Details
               </button>
@@ -154,49 +151,59 @@ const ViewMyProjects = () => {
       )}
 
       {selectedProject && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-lg shadow-lg p-6 max-w-2xl w-full max-h-96 overflow-y-auto">
-            <h2 className="text-2xl font-semibold text-gray-800 mb-2">{selectedProject.projectTitle}</h2>
-            <p className="text-gray-600 mb-4">
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+          <div className="bg-slate-800 rounded-2xl shadow-2xl p-6 max-w-2xl w-full max-h-[80vh] overflow-y-auto border border-green-500/20">
+            <div className="flex justify-between items-start mb-4">
+              <h2 className="text-2xl font-bold text-white">{selectedProject.projectTitle}</h2>
+              <button
+                onClick={() => setSelectedProject(null)}
+                className="text-gray-400 hover:text-white text-2xl leading-none"
+              >
+                ×
+              </button>
+            </div>
+            <p className="text-green-300/70 mb-4">
               <strong>Subject:</strong> {selectedProject.subject}
             </p>
 
-            <div className="grid grid-cols-2 gap-4 mb-4 p-3 bg-gray-50 rounded">
+            <div className="grid grid-cols-2 gap-4 mb-4 p-3 bg-slate-700/50 rounded-lg border border-slate-600/30">
               <div>
-                <p className="text-sm text-gray-500">Status</p>
-                <p className="text-gray-800 font-medium">{getStatusLabel(selectedProject.status)}</p>
+                <p className="text-green-300/70 text-xs">Status</p>
+                <span className={`inline-block px-2 py-1 rounded text-xs font-semibold border mt-1 ${getStatusColor(selectedProject.status)}`}>
+                  {getStatusLabel(selectedProject.status)}
+                </span>
               </div>
               <div>
-                <p className="text-sm text-gray-500">Max Team Size</p>
-                <p className="text-gray-800 font-medium">{selectedProject.maxTeamSize}</p>
+                <p className="text-green-300/70 text-xs">Max Team Size</p>
+                <p className="text-white font-medium">{selectedProject.maxTeamSize}</p>
               </div>
               <div>
-                <p className="text-sm text-gray-500">Deadline</p>
-                <p className="text-gray-800 font-medium">{new Date(selectedProject.deadline).toLocaleDateString()}</p>
+                <p className="text-green-300/70 text-xs">Deadline</p>
+                <p className="text-white font-medium">{new Date(selectedProject.deadline).toLocaleDateString()}</p>
               </div>
               <div>
-                <p className="text-sm text-gray-500">Team Members</p>
-                <p className="text-gray-800 font-medium">{selectedProject.teamMembers?.length || 0}</p>
+                <p className="text-green-300/70 text-xs">Classroom</p>
+                <p className="text-white font-medium text-sm">{formatClassroom(selectedProject.classroomId)}</p>
               </div>
             </div>
 
             {selectedProject.teamMembers && selectedProject.teamMembers.length > 0 && (
-              <div className="mb-4 border-t pt-4">
-                <h4 className="font-semibold text-gray-800 mb-2">Team Members</h4>
-                <ul className="space-y-2">
+              <div className="mb-4 border-t border-green-500/20 pt-4">
+                <h4 className="font-semibold text-white mb-2">Team Members ({selectedProject.teamMembers.length})</h4>
+                <div className="flex flex-wrap gap-2">
                   {selectedProject.teamMembers.map((member, idx) => (
-                    <li key={idx} className="text-sm text-gray-600 flex items-center">
-                      <span className="w-2 h-2 bg-green-600 rounded-full mr-2"></span>
-                      {member}
-                    </li>
+                    <span key={idx} className="bg-green-600/20 text-green-300 px-3 py-1 rounded-full text-sm border border-green-500/30 flex items-center gap-1">
+                      <span className="w-2 h-2 bg-green-400 rounded-full"></span>
+                      {member.rollNumber || member}
+                    </span>
                   ))}
-                </ul>
+                </div>
               </div>
             )}
 
             <button
               onClick={() => setSelectedProject(null)}
-              className="w-full bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded"
+              className="w-full bg-slate-700 hover:bg-slate-600 text-gray-300 px-4 py-2 rounded-lg transition-all"
             >
               Close
             </button>

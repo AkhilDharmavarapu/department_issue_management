@@ -105,7 +105,7 @@ exports.getFacultyStats = async (req, res, next) => {
     const classroomIds = classrooms.map(c => c._id);
 
     const [totalProjects, totalIssues, openIssues, resolvedIssues] = await Promise.all([
-      Project.countDocuments({ createdBy: userId }),
+      Project.countDocuments({ facultyId: userId }),
       Issue.countDocuments({ classroomId: { $in: classroomIds } }),
       Issue.countDocuments({ classroomId: { $in: classroomIds }, status: 'Open' }),
       Issue.countDocuments({ classroomId: { $in: classroomIds }, status: 'Resolved' }),

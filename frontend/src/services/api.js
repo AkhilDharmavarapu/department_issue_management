@@ -71,6 +71,8 @@ export const classroomAPI = {
     apiClient.post('/classrooms', data),
   getAllClassrooms: (params) =>
     apiClient.get('/classrooms', { params }),
+  getMyClassrooms: () =>
+    apiClient.get('/classrooms/my'),
   getClassroomById: (id) =>
     apiClient.get(`/classrooms/${id}`),
   updateClassroom: (id, data) =>

@@ -154,6 +154,28 @@ exports.updateClassroom = async (req, res, next) => {
 };
 
 /**
+ * Get classrooms assigned to the logged-in faculty
+ * Faculty only
+ */
+exports.getMyClassrooms = async (req, res, next) => {
+  try {
+    const { userId } = req.user;
+
+    const classrooms = await Classroom.find({ facultyList: userId })
+      .populate(['cr', 'lr', 'facultyList'])
+      .sort({ createdAt: -1 });
+
+    res.status(200).json({
+      success: true,
+      count: classrooms.length,
+      data: classrooms,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
  * Delete a classroom
  * Admin only
  */

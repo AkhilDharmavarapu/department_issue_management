@@ -13,16 +13,31 @@ export const AuthProvider = ({ children }) => {
   const [error, setError] = useState(null);
 
   // Check if user is already logged in on app load
-  useEffect(() => {
+useEffect(() => {
+  const loadUser = async () => {
     const storedToken = localStorage.getItem('token');
-    const storedUser = localStorage.getItem('user');
 
-    if (storedToken && storedUser) {
+    if (storedToken) {
       setToken(storedToken);
-      setUser(JSON.parse(storedUser));
+
+      try {
+        const res = await authAPI.getMe();
+        const userData = res.data.user;
+
+        setUser({
+          ...userData,
+          role: userData.role.toLowerCase(),
+        });
+      } catch (err) {
+        logout();
+      }
     }
+
     setLoading(false);
-  }, []);
+  };
+
+  loadUser();
+}, []);
 
   /**
    * Login user with email and password

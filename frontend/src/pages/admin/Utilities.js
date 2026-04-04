@@ -9,6 +9,7 @@ const Utilities = () => {
   const [error, setError] = useState('');
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState(null);
+  const [filterStatus, setFilterStatus] = useState('');
   const [formData, setFormData] = useState({
     utilityName: '',
     category: '',
@@ -19,12 +20,14 @@ const Utilities = () => {
 
   useEffect(() => {
     fetchUtilities();
-  }, []);
+  }, [filterStatus]);
 
   const fetchUtilities = async () => {
     setLoading(true);
     try {
-      const response = await utilityAPI.getAllUtilities();
+      const params = {};
+      if (filterStatus) params.status = filterStatus;
+      const response = await utilityAPI.getAllUtilities(params);
       setUtilities(response.data.data);
       setError('');
     } catch (err) {
@@ -90,16 +93,22 @@ const Utilities = () => {
 
   const getStatusColor = (status) => {
     const colors = {
-      working: 'bg-green-500/20 text-green-300 border-green-500/30',
-      damaged: 'bg-green-500/20 text-green-300 border-green-500/30',
-      maintenance: 'bg-green-500/20 text-green-300 border-green-500/30',
+      working: 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30',
+      damaged: 'bg-red-500/20 text-red-300 border-red-500/30',
+      maintenance: 'bg-yellow-500/20 text-yellow-300 border-yellow-500/30',
     };
     return colors[status] || 'bg-gray-500/20 text-gray-300 border-gray-500/30';
   };
 
+  // Compute analytics
+  const total = utilities.length;
+  const workingCount = utilities.filter(u => u.status === 'working').length;
+  const damagedCount = utilities.filter(u => u.status === 'damaged').length;
+  const maintenanceCount = utilities.filter(u => u.status === 'maintenance').length;
+
   return (
     <div className="p-8 bg-gradient-to-br from-slate-900 to-slate-800 min-h-screen">
-          <button onClick={() => navigate('/admin/dashboard?tab=overview')} className="inline-flex items-center gap-2 text-green-400 hover:text-green-300 mb-4 transition-colors">
+      <button onClick={() => navigate('/admin/dashboard?tab=overview')} className="inline-flex items-center gap-2 text-green-400 hover:text-green-300 mb-4 transition-colors">
         <span className="text-2xl">←</span>
         <span className="font-semibold">Back to Dashboard</span>
       </button>
@@ -126,8 +135,50 @@ const Utilities = () => {
         </button>
       </div>
 
+      {/* Analytics Cards */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-8">
+        <div className="bg-slate-800 rounded-xl p-5 border border-slate-600/50">
+          <p className="text-gray-400 text-xs font-semibold uppercase tracking-wide mb-2">Total</p>
+          <p className="text-3xl font-bold text-white">{total}</p>
+        </div>
+        <div className="bg-emerald-500/10 rounded-xl p-5 border border-emerald-400/30">
+          <p className="text-emerald-300 text-xs font-semibold uppercase tracking-wide mb-2">Working</p>
+          <p className="text-3xl font-bold text-emerald-400">{workingCount}</p>
+        </div>
+        <div className="bg-red-500/10 rounded-xl p-5 border border-red-400/30">
+          <p className="text-red-300 text-xs font-semibold uppercase tracking-wide mb-2">Damaged</p>
+          <p className="text-3xl font-bold text-red-400">{damagedCount}</p>
+        </div>
+        <div className="bg-yellow-500/10 rounded-xl p-5 border border-yellow-400/30">
+          <p className="text-yellow-300 text-xs font-semibold uppercase tracking-wide mb-2">Maintenance</p>
+          <p className="text-3xl font-bold text-yellow-400">{maintenanceCount}</p>
+        </div>
+      </div>
+
+      {/* Status Filter */}
+      <div className="mb-6 flex gap-2 flex-wrap">
+        {[
+          { label: 'All', value: '' },
+          { label: 'Working', value: 'working' },
+          { label: 'Damaged', value: 'damaged' },
+          { label: 'Maintenance', value: 'maintenance' },
+        ].map(btn => (
+          <button
+            key={btn.value}
+            onClick={() => setFilterStatus(btn.value)}
+            className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-300 ${
+              filterStatus === btn.value
+                ? 'bg-gradient-to-r from-emerald-600 to-teal-600 text-white shadow-lg'
+                : 'bg-slate-700/50 text-gray-300 hover:bg-slate-700 border border-slate-600/30'
+            }`}
+          >
+            {btn.label}
+          </button>
+        ))}
+      </div>
+
       {error && (
-        <div className="mb-6 p-4 bg-green-500/20 border border-green-500/50 text-green-300 rounded-xl">
+        <div className="mb-6 p-4 bg-red-500/20 border border-red-500/50 text-red-300 rounded-xl">
           {error}
         </div>
       )}
@@ -233,6 +284,10 @@ const Utilities = () => {
             <p className="text-emerald-300 mt-4 font-semibold">Loading utilities...</p>
           </div>
         </div>
+      ) : utilities.length === 0 ? (
+        <div className="text-center py-16 bg-slate-800 rounded-2xl border border-emerald-500/20">
+          <p className="text-emerald-300/70 text-lg">No utilities found</p>
+        </div>
       ) : (
         <div className="grid grid-cols-1 gap-4">
           {utilities.map(utility => (
@@ -270,7 +325,7 @@ const Utilities = () => {
                   </button>
                   <button
                     onClick={() => handleDelete(utility._id)}
-                    className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg font-semibold transition-all duration-300 transform hover:scale-105"
+                    className="bg-red-600/80 hover:bg-red-700 text-white px-4 py-2 rounded-lg font-semibold transition-all duration-300 transform hover:scale-105"
                   >
                     🗑️
                   </button>

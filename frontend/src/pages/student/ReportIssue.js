@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { issueAPI } from '../../services/api';
+import { issueAPI, authAPI } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
 
 const ReportIssue = () => {
@@ -15,6 +15,13 @@ const ReportIssue = () => {
     category: '',
     priority: 'Medium',
   });
+  const [profile, setProfile] = useState(null);
+
+  useEffect(() => {
+    authAPI.getMe()
+      .then(res => setProfile(res.data.data))
+      .catch(() => {});
+  }, []);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -151,8 +158,10 @@ const ReportIssue = () => {
               <p className="text-green-300 font-semibold">
                 📍 Your Classroom
               </p>
-              <p className="text-green-100 mt-2">
-                {user?.classroomId ? 'Your issue will be automatically assigned to your classroom' : 'Classroom information not available'}
+              <p className="text-green-100 mt-2 text-lg font-medium">
+                {profile?.classroomId
+                  ? `${profile.classroomId.department} - Year ${profile.classroomId.year} - Section ${profile.classroomId.section}`
+                  : 'No classroom assigned — contact your admin'}
               </p>
             </div>
 

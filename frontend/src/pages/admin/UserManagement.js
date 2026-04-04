@@ -273,7 +273,9 @@ const UserManagement = () => {
                       <div>
                         <p className="text-green-300/70 text-xs font-semibold">Classroom</p>
                         <p className="text-white font-medium">
-                          {user.classroomId ? `${user.classroomId.department || '—'}` : '—'}
+                          {user.classroomId
+                            ? `${user.classroomId.department} - Year ${user.classroomId.year} - Section ${user.classroomId.section}`
+                            : '—'}
                         </p>
                       </div>
                       <div>
