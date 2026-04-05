@@ -4,6 +4,7 @@ const {
   createProject,
   getProjectsByClassroom,
   getMyProjects,
+  getAssignedProjects,
   getProjectById,
   updateProject,
   addTeamMember,
@@ -31,6 +32,13 @@ router.get('/my', authMiddleware, facultyOnly, getMyProjects);
  * Faculty and Students of that classroom
  */
 router.get('/class/:classroomId', authMiddleware, getProjectsByClassroom);
+
+/**
+ * GET /api/projects/assigned
+ * Get all projects assigned to logged-in student
+ * Students only
+ */
+router.get('/assigned', authMiddleware, getAssignedProjects);
 
 /**
  * GET /api/projects/:id

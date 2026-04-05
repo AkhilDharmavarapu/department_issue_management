@@ -34,12 +34,15 @@ apiClient.interceptors.request.use(
 apiClient.interceptors.response.use(
   (response) => response,
   (error) => {
-    if (error.response?.status === 401) {
-      // Token expired or invalid
-      localStorage.removeItem('token');
-      localStorage.removeItem('user');
-      window.location.href = '/login';
-    }
+    const status = error.response?.status;
+
+if (status === 401 || status === 403) {
+  localStorage.removeItem('token');
+
+  if (window.location.pathname !== '/login') {
+    window.location.href = '/login';
+  }
+}
     return Promise.reject(error);
   }
 );
@@ -135,6 +138,8 @@ export const projectAPI = {
     apiClient.post('/projects', data),
   getMyProjects: () =>
     apiClient.get('/projects/my'),
+  getAssignedProjects: () =>
+    apiClient.get('/projects/assigned'),
   getProjectsByClassroom: (classroomId) =>
     apiClient.get(`/projects/class/${classroomId}`),
   getProjectById: (id) =>

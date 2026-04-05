@@ -28,12 +28,16 @@ exports.createProject = async (req, res, next) => {
     }
 
     // Check if faculty is assigned to this classroom
-    if (!classroom.facultyList.includes(userId)) {
-      return res.status(403).json({
-        success: false,
-        message: 'You are not assigned to this classroom',
-      });
-    }
+const isAssigned = classroom.facultyList.some(
+  (id) => id.toString() === userId.toString()
+);
+
+if (!isAssigned) {
+  return res.status(403).json({
+    success: false,
+    message: 'You are not assigned to this classroom',
+  });
+}
 
     const project = await Project.create({
       projectTitle,
@@ -170,7 +174,7 @@ exports.updateProject = async (req, res, next) => {
     }
 
     // Check if user is the project creator
-    if (project.facultyId.toString() !== userId) {
+    if (project.facultyId.toString() !== userId.toString()) {
       return res.status(403).json({
         success: false,
         message: 'You can only update your own projects',
@@ -224,7 +228,7 @@ exports.addTeamMember = async (req, res, next) => {
     }
 
     // Check if user is the project creator
-    if (project.facultyId.toString() !== userId) {
+    if (project.facultyId.toString() !== userId.toString()) {
       return res.status(403).json({
         success: false,
         message: 'You can only modify your own projects',
@@ -249,6 +253,13 @@ exports.addTeamMember = async (req, res, next) => {
 
     // Find user by roll number
     const user = await User.findOne({ rollNumber });
+
+    if (!user) {
+  return res.status(404).json({
+    success: false,
+    message: 'Student not found with this roll number',
+  });
+}
 
     project.teamMembers.push({
       rollNumber,
@@ -286,7 +297,7 @@ exports.deleteProject = async (req, res, next) => {
     }
 
     // Check if user is the project creator
-    if (project.facultyId.toString() !== userId) {
+    if (project.facultyId.toString() !== userId.toString()) {
       return res.status(403).json({
         success: false,
         message: 'You can only delete your own projects',
@@ -298,6 +309,38 @@ exports.deleteProject = async (req, res, next) => {
     res.status(200).json({
       success: true,
       message: 'Project deleted successfully',
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * Get projects assigned to logged-in student
+ * Students can see projects where they are team members
+ */
+exports.getAssignedProjects = async (req, res, next) => {
+  try {
+    const { _id, rollNumber } = req.user;
+
+    if (!rollNumber) {
+      return res.status(400).json({
+        success: false,
+        message: 'Student roll number not found',
+      });
+    }
+
+    // Find all projects where this student is a team member
+    const projects = await Project.find({
+      'teamMembers.rollNumber': rollNumber,
+    })
+      .populate('facultyId classroomId')
+      .sort({ createdAt: -1 });
+
+    res.status(200).json({
+      success: true,
+      count: projects.length,
+      data: projects,
     });
   } catch (error) {
     next(error);

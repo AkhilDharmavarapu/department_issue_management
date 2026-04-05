@@ -5,20 +5,24 @@ import CreateProject from './faculty/CreateProject';
 import ViewMyProjects from './faculty/ViewMyProjects';
 import ManageTeamMembers from './faculty/ManageTeamMembers';
 import ViewClassroomIssues from './faculty/ViewClassroomIssues';
-import { statsAPI } from '../services/api';
+import { statsAPI, classroomAPI } from '../services/api';
 
 const FacultyDashboard = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  const { logout } = useAuth();
+  const { logout, user } = useAuth();
   const [activeTab, setActiveTab] = useState('overview');
   const [stats, setStats] = useState(null);
+  const [classrooms, setClassrooms] = useState([]);
 
   useEffect(() => {
     if (activeTab === 'overview') {
       statsAPI.getFacultyStats()
         .then(res => setStats(res.data.data))
         .catch(() => {});
+      classroomAPI.getMyClassrooms()
+        .then(res => setClassrooms(res.data.data || []))
+        .catch(() => setClassrooms([]));
     }
   }, [activeTab]);
 
@@ -49,7 +53,7 @@ const FacultyDashboard = () => {
           <div className="mb-10">
             <div className="flex items-center gap-3 mb-2">
               <div className="w-10 h-10 bg-gradient-to-r from-green-500 to-emerald-500 rounded-lg flex items-center justify-center text-xl">👨‍🏫</div>
-              <h1 className="text-2xl font-bold bg-gradient-to-r from-green-400 to-emerald-400 bg-clip-text text-transparent">Faculty</h1>
+              <h1 className="text-2xl font-bold bg-gradient-to-r from-green-400 to-emerald-400 bg-clip-text text-transparent">{user?.name || "Faculty"}</h1>
             </div>
             <p className="text-green-300/60 text-xs">Faculty Panel</p>
           </div>
@@ -109,7 +113,7 @@ const FacultyDashboard = () => {
                 ))}
               </div>
 
-              <div className="bg-gradient-to-r from-slate-800 to-slate-700 rounded-xl p-8 border border-slate-600/50 shadow-2xl">
+              <div className="bg-gradient-to-r from-slate-800 to-slate-700 rounded-xl p-8 border border-slate-600/50 shadow-2xl mb-8">
                 <h2 className="text-2xl font-bold text-white mb-6">Quick Stats</h2>
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-6">
                   <div className="bg-green-500/10 rounded-lg p-6 border border-green-400/30">
@@ -129,6 +133,36 @@ const FacultyDashboard = () => {
                     <p className="text-4xl font-bold text-purple-400">{stats?.totalClassrooms ?? '—'}</p>
                   </div>
                 </div>
+              </div>
+
+              <div className="bg-gradient-to-r from-slate-800 to-slate-700 rounded-xl p-8 border border-slate-600/50 shadow-2xl">
+                <h2 className="text-2xl font-bold text-white mb-6">My Classrooms</h2>
+                {classrooms && classrooms.length > 0 ? (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                    {classrooms.map(classroom => (
+                      <div key={classroom._id} className="bg-slate-900/50 border border-green-400/30 rounded-lg p-6 hover:border-green-400/60 transition-all duration-300">
+                        <div className="flex items-start justify-between mb-4">
+                          <div className="flex-1">
+                            <h3 className="text-lg font-bold text-white mb-2">{classroom.department}</h3>
+                            <div className="space-y-1">
+                              <p className="text-green-300 text-sm">Year: <span className="font-semibold">{classroom.year}</span></p>
+                              <p className="text-green-300 text-sm">Section: <span className="font-semibold">{classroom.section}</span></p>
+                            </div>
+                          </div>
+                          <div className="text-3xl">🏫</div>
+                        </div>
+                        <div className="pt-4 border-t border-slate-600/50">
+                          <p className="text-gray-400 text-xs">Class ID: {classroom._id.substring(0, 8)}...</p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="bg-slate-900/50 border border-yellow-400/30 rounded-lg p-8 text-center">
+                    <p className="text-yellow-300 text-lg font-semibold">No classrooms assigned</p>
+                    <p className="text-gray-400 text-sm mt-2">Contact administration to assign classrooms</p>
+                  </div>
+                )}
               </div>
             </div>
           )}

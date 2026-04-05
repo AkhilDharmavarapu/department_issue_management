@@ -12,10 +12,19 @@ const UserManagement = () => {
   const [filterRole, setFilterRole] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
   const [showForm, setShowForm] = useState(false);
+  const [showEditForm, setShowEditForm] = useState(false);
+  const [editingUserId, setEditingUserId] = useState(null);
   const [formData, setFormData] = useState({
     name: '',
     email: '',
     password: '',
+    role: 'student',
+    rollNumber: '',
+    classroomId: '',
+  });
+  const [editFormData, setEditFormData] = useState({
+    name: '',
+    email: '',
     role: 'student',
     rollNumber: '',
     classroomId: '',
@@ -81,6 +90,54 @@ const UserManagement = () => {
       fetchUsers();
     } catch (err) {
       setError(err.response?.data?.message || 'Failed to update user');
+    }
+  };
+
+  const handleOpenEditForm = (user) => {
+    // Clear any previous edit state first
+    setShowEditForm(false);
+    setEditingUserId(null);
+    setEditFormData({ name: '', email: '', role: 'student', rollNumber: '', classroomId: '' });
+    
+    // Then set new user data
+    setTimeout(() => {
+      setEditingUserId(user._id);
+      setEditFormData({
+        name: user.name,
+        email: user.email,
+        role: user.role,
+        rollNumber: user.rollNumber || '',
+        classroomId: user.classroomId ? user.classroomId._id : '',
+      });
+      setShowEditForm(true);
+    }, 0);
+  };
+
+  const handleUpdateUser = async (e) => {
+    e.preventDefault();
+    setError('');
+    setSuccess('');
+    try {
+      const payload = { ...editFormData };
+      if (!payload.rollNumber) delete payload.rollNumber;
+      if (!payload.classroomId) delete payload.classroomId;
+
+      await userAPI.updateUser(editingUserId, payload);
+      
+      // Close form and reset state IMMEDIATELY before refreshing
+      setShowEditForm(false);
+      setEditingUserId(null);
+      setEditFormData({ name: '', email: '', role: 'student', rollNumber: '', classroomId: '' });
+      
+      // Then refresh the user list
+      await fetchUsers();
+      
+      // Show success message
+      setSuccess('User updated successfully');
+      setTimeout(() => setSuccess(''), 3000);
+    } catch (err) {
+      setError(err.response?.data?.message || 'Failed to update user');
+      setTimeout(() => setError(''), 3000);
     }
   };
 
@@ -290,17 +347,113 @@ const UserManagement = () => {
                       </div>
                     </div>
                   </div>
-                  <button
-                    onClick={() => handleToggleActive(user._id, user.isActive)}
-                    className={`px-4 py-2 rounded-lg font-semibold transition-all duration-300 ${
-                      user.isActive
-                        ? 'bg-red-600 hover:bg-red-700 text-white'
-                        : 'bg-green-600 hover:bg-green-700 text-white'
-                    }`}
-                  >
-                    {user.isActive ? 'Deactivate' : 'Activate'}
-                  </button>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => handleOpenEditForm(user)}
+                      className="px-4 py-2 rounded-lg font-semibold transition-all duration-300 bg-blue-600 hover:bg-blue-700 text-white"
+                    >
+                      ✎ Edit
+                    </button>
+                    <button
+                      onClick={() => handleToggleActive(user._id, user.isActive)}
+                      className={`px-4 py-2 rounded-lg font-semibold transition-all duration-300 ${
+                        user.isActive
+                          ? 'bg-red-600 hover:bg-red-700 text-white'
+                          : 'bg-green-600 hover:bg-green-700 text-white'
+                      }`}
+                    >
+                      {user.isActive ? 'Deactivate' : 'Activate'}
+                    </button>
+                  </div>
                 </div>
+
+                {/* Inline Edit Form - Shows under selected user */}
+                {editingUserId === user._id && (
+                  <div className="mt-6 pt-6 border-t border-green-500/20 bg-slate-700/50 p-6 rounded-lg">
+                    <h3 className="text-lg font-bold text-white mb-4">Edit User Details</h3>
+                    <form onSubmit={handleUpdateUser} className="space-y-4">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div>
+                          <label className="block text-sm font-semibold text-green-300 mb-2">Name *</label>
+                          <input
+                            type="text"
+                            value={editFormData.name}
+                            onChange={(e) => setEditFormData({ ...editFormData, name: e.target.value })}
+                            required
+                            placeholder="Full name"
+                            className="w-full px-4 py-2 bg-slate-600 border border-green-500/30 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-green-500"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-semibold text-green-300 mb-2">Email *</label>
+                          <input
+                            type="email"
+                            value={editFormData.email}
+                            onChange={(e) => setEditFormData({ ...editFormData, email: e.target.value })}
+                            required
+                            placeholder="user@college.edu"
+                            className="w-full px-4 py-2 bg-slate-600 border border-green-500/30 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-green-500"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-semibold text-green-300 mb-2">Role *</label>
+                          <select
+                            value={editFormData.role}
+                            onChange={(e) => setEditFormData({ ...editFormData, role: e.target.value })}
+                            className="w-full px-4 py-2 bg-slate-600 border border-green-500/30 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-green-500"
+                          >
+                            <option value="student">Student</option>
+                            <option value="faculty">Faculty</option>
+                            <option value="admin">Admin</option>
+                          </select>
+                        </div>
+                        <div>
+                          <label className="block text-sm font-semibold text-green-300 mb-2">Roll Number</label>
+                          <input
+                            type="text"
+                            value={editFormData.rollNumber}
+                            onChange={(e) => setEditFormData({ ...editFormData, rollNumber: e.target.value })}
+                            placeholder="e.g., CS2021001"
+                            className="w-full px-4 py-2 bg-slate-600 border border-green-500/30 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-green-500"
+                          />
+                        </div>
+                        <div className="sm:col-span-2">
+                          <label className="block text-sm font-semibold text-green-300 mb-2">Classroom</label>
+                          <select
+                            value={editFormData.classroomId}
+                            onChange={(e) => setEditFormData({ ...editFormData, classroomId: e.target.value })}
+                            className="w-full px-4 py-2 bg-slate-600 border border-green-500/30 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-green-500"
+                          >
+                            <option value="">No Classroom</option>
+                            {classrooms.map(c => (
+                              <option key={c._id} value={c._id}>
+                                {c.department} - Y{c.year} S{c.section}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                      </div>
+                      <div className="flex gap-3 pt-2">
+                        <button
+                          type="submit"
+                          className="flex-1 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white font-semibold py-2 px-4 rounded-lg transition-all duration-300"
+                        >
+                          Save Changes
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setEditingUserId(null);
+                            setEditFormData({ name: '', email: '', role: 'student', rollNumber: '', classroomId: '' });
+                          }}
+                          className="flex-1 bg-slate-500 hover:bg-slate-600 text-white font-semibold py-2 px-4 rounded-lg transition-all duration-300"
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    </form>
+                  </div>
+                )}
               </div>
             ))
           )}
