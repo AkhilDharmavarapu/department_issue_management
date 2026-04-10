@@ -21,11 +21,25 @@ import ViewClassroomIssues from './pages/faculty/ViewClassroomIssues';
 const ProtectedRoute = ({ element, allowedRoles = [] }) => {
   const { user, token } = useAuth();
 
+  console.log('[ROUTE] Protected route check:', {
+    path: window.location.pathname,
+    hasToken: !!token,
+    user_role: user?.role,
+    allowedRoles,
+    hasUser: !!user,
+  });
+
   if (!token) {
+    console.warn('[ROUTE] No token - redirecting to login');
     return <Navigate to="/login" replace />;
   }
 
   if (allowedRoles.length > 0 && !allowedRoles.includes(user?.role)) {
+    console.warn('[ROUTE] Role check failed:', {
+      user_role: user?.role,
+      allowedRoles,
+      user_exists: !!user,
+    });
     return <Navigate to="/" replace />;
   }
 

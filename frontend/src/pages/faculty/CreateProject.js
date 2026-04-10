@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { projectAPI, classroomAPI } from '../../services/api';
 
-const CreateProject = () => {
+const CreateProject = ({ onBack }) => {
   const navigate = useNavigate();
   const [classrooms, setClassrooms] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -65,7 +65,7 @@ const CreateProject = () => {
     <div className="p-8 bg-gradient-to-br from-slate-900 to-slate-800 min-h-screen">
       <div className="max-w-3xl mx-auto">
         <button
-          onClick={() => navigate('/faculty/dashboard?tab=overview')}
+          onClick={onBack}
           className="mb-4 px-4 py-2 bg-gray-600 text-white rounded hover:bg-gray-700 flex items-center gap-2"
         >
           ← Back to Dashboard

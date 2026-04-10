@@ -7,7 +7,7 @@ const API_BASE = process.env.REACT_APP_API_URL?.replace('/api', '') || 'http://l
 const formatClassroom = (c) =>
   c ? `${c.department} - Year ${c.year} - Section ${c.section}` : '—';
 
-const UploadTimetable = () => {
+const UploadTimetable = ({ onBack }) => {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -103,7 +103,7 @@ const UploadTimetable = () => {
   return (
     <div className="p-8 bg-gradient-to-br from-slate-900 to-slate-800 min-h-screen">
       <div className="max-w-4xl mx-auto">
-        <button onClick={() => navigate('/admin/dashboard?tab=overview')} className="inline-flex items-center gap-2 text-green-400 hover:text-green-300 mb-4 transition-colors">
+        <button onClick={onBack} className="inline-flex items-center gap-2 text-green-400 hover:text-green-300 mb-4 transition-colors">
           <span className="text-2xl">←</span>
           <span className="font-semibold">Back to Dashboard</span>
         </button>

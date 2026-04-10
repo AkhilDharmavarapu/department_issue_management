@@ -15,14 +15,19 @@ exports.login = async (req, res, next) => {
       });
     }
 
-    const user = await User.findOne({ email }).select('+passwordHash');
+console.log("LOGIN HIT");
+console.log("Email:", email);
 
-    if (!user) {
-      return res.status(401).json({
-        success: false,
-        message: 'Invalid email or password',
-      });
-    }
+const user = await User.findOne({ email }).select('+passwordHash');
+
+console.log("User from DB:", user);
+
+if (!user) {
+  return res.status(401).json({
+    success: false,
+    message: 'Invalid email or password',
+  });
+}
 
     if (!user.isActive) {
       return res.status(401).json({
@@ -32,6 +37,7 @@ exports.login = async (req, res, next) => {
     }
 
     const isPasswordMatch = await user.matchPassword(password);
+    console.log("Password match:", isPasswordMatch);
 
     if (!isPasswordMatch) {
       return res.status(401).json({

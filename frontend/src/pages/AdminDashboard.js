@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import NotificationBell from '../components/NotificationBell';
 import Classrooms from './admin/Classrooms';
 import Utilities from './admin/Utilities';
 import ManageIssues from './admin/ManageIssues';
@@ -28,7 +29,7 @@ const AdminDashboard = () => {
     const params = new URLSearchParams(location.search);
     const tabParam = params.get('tab');
     if (tabParam) setActiveTab(tabParam);
-  }, [location]);
+  }, [location.search]);
 
   const handleLogout = () => {
     logout();
@@ -86,6 +87,11 @@ const AdminDashboard = () => {
 
         {/* Main Content */}
         <div className="flex-1 overflow-y-auto">
+          {/* Top Header */}
+          <div className="bg-slate-800 border-b border-green-500/20 px-8 py-4 flex justify-end items-center">
+            <NotificationBell />
+          </div>
+
           {activeTab === 'overview' && (
             <div className="p-8 bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 min-h-screen">
               <div className="mb-12">
@@ -207,12 +213,12 @@ const AdminDashboard = () => {
             </div>
           )}
 
-          {activeTab === 'classrooms' && <Classrooms />}
-          {activeTab === 'utilities' && <Utilities />}
-          {activeTab === 'labs' && <Labs />}
-          {activeTab === 'issues' && <ManageIssues />}
-          {activeTab === 'timetable' && <UploadTimetable />}
-          {activeTab === 'users' && <UserManagement />}
+          {activeTab === 'classrooms' && <Classrooms onBack={() => setActiveTab('overview')} />}
+          {activeTab === 'utilities' && <Utilities onBack={() => setActiveTab('overview')} />}
+          {activeTab === 'labs' && <Labs onBack={() => setActiveTab('overview')} />}
+          {activeTab === 'issues' && <ManageIssues onBack={() => setActiveTab('overview')} />}
+          {activeTab === 'timetable' && <UploadTimetable onBack={() => setActiveTab('overview')} />}
+          {activeTab === 'users' && <UserManagement onBack={() => setActiveTab('overview')} />}
         </div>
       </div>
     </div>

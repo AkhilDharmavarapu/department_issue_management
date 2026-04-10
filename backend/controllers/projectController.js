@@ -1,6 +1,8 @@
 const Project = require('../models/Project');
 const Classroom = require('../models/Classroom');
 const User = require('../models/User');
+const Notification = require('../models/Notification');
+const { checkAndUpdateProjectStatus, checkAndUpdateMultipleProjects } = require('../utils/deadlineUtils');
 
 /**
  * Create a new project assignment
@@ -101,6 +103,9 @@ exports.getProjectsByClassroom = async (req, res, next) => {
 
     const projects = await Project.find({ classroomId }).populate('facultyId classroomId').sort({ createdAt: -1 });
 
+    // Check and update overdue status for all projects
+    await checkAndUpdateMultipleProjects(projects);
+
     res.status(200).json({
       success: true,
       count: projects.length,
@@ -121,6 +126,9 @@ exports.getMyProjects = async (req, res, next) => {
     const projects = await Project.find({ facultyId: userId })
       .populate('classroomId facultyId')
       .sort({ createdAt: -1 });
+
+    // Check and update overdue status for all projects
+    await checkAndUpdateMultipleProjects(projects);
 
     res.status(200).json({
       success: true,
@@ -146,6 +154,9 @@ exports.getProjectById = async (req, res, next) => {
       });
     }
 
+    // Check and update overdue status
+    await checkAndUpdateProjectStatus(project);
+
     res.status(200).json({
       success: true,
       data: project,
@@ -158,6 +169,7 @@ exports.getProjectById = async (req, res, next) => {
 /**
  * Update project details
  * Faculty can update their own projects
+ * When deadline is updated, creates notifications for team members
  */
 exports.updateProject = async (req, res, next) => {
   try {
@@ -181,6 +193,10 @@ exports.updateProject = async (req, res, next) => {
       });
     }
 
+    // Check if deadline is being changed
+    const deadlineChanged = deadline && project.deadline.toString() !== new Date(deadline).toString();
+    const oldDeadline = project.deadline;
+
     if (projectTitle) project.projectTitle = projectTitle;
     if (subject) project.subject = subject;
     if (description !== undefined) project.description = description;
@@ -190,11 +206,142 @@ exports.updateProject = async (req, res, next) => {
 
     project.updatedAt = Date.now();
     await project.save();
+
+    // Create notifications for team members if deadline was changed
+    if (deadlineChanged && project.teamMembers && project.teamMembers.length > 0) {
+      const newDeadlineFormatted = new Date(deadline).toLocaleDateString();
+      const notificationMessage = `Project deadline extended to ${newDeadlineFormatted}`;
+
+      // Create notification for each team member
+      const notifications = project.teamMembers.map((member) => ({
+        userId: member.userId,
+        message: notificationMessage,
+        type: 'deadline_update',
+        projectId: project._id,
+      }));
+
+      await Notification.insertMany(notifications);
+      console.log(`[DEADLINE] Created ${notifications.length} deadline extension notifications for project ${project._id}`);
+    }
+
     await project.populate('facultyId classroomId');
 
     res.status(200).json({
       success: true,
       message: 'Project updated successfully',
+      data: project,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * Update project status with role-based validation
+ * Students can: not_started → in_progress → submitted
+ * Faculty can: submitted → evaluated
+ * Faculty (creator) can also update status without restrictions
+ */
+exports.updateProjectStatus = async (req, res, next) => {
+  try {
+    const { status } = req.body;
+    const { userId, role, rollNumber } = req.user;
+
+    // Validate status is provided
+    if (!status) {
+      return res.status(400).json({
+        success: false,
+        message: 'Please provide a status value',
+      });
+    }
+
+    // Validate status value
+    const validStatuses = ['not_started', 'in_progress', 'submitted', 'evaluated'];
+    if (!validStatuses.includes(status)) {
+      return res.status(400).json({
+        success: false,
+        message: `Invalid status. Allowed values: ${validStatuses.join(', ')}`,
+      });
+    }
+
+    const project = await Project.findById(req.params.id);
+
+    if (!project) {
+      return res.status(404).json({
+        success: false,
+        message: 'Project not found',
+      });
+    }
+
+    const currentStatus = project.status;
+    let isAuthorized = false;
+    let updateReason = '';
+
+    // FACULTY: Can update if they are the project creator
+    if (role === 'faculty' && project.facultyId.toString() === userId.toString()) {
+      isAuthorized = true;
+      updateReason = 'Faculty creator: no restrictions';
+    }
+
+    // STUDENTS: Can only update if they are team members
+    if (role === 'student') {
+      const isTeamMember = project.teamMembers.some((m) => m.rollNumber === rollNumber);
+      
+      if (!isTeamMember) {
+        return res.status(403).json({
+          success: false,
+          message: 'You are not a team member of this project',
+        });
+      }
+
+      // STUDENT TRANSITIONS: not_started → in_progress → submitted only
+      const allowedTransitions = {
+        'not_started': ['in_progress'],
+        'in_progress': ['submitted'],
+        'submitted': [], // Students cannot go back
+        'evaluated': [], // Students cannot change evaluated status
+      };
+
+      if (!allowedTransitions[currentStatus].includes(status)) {
+        return res.status(400).json({
+          success: false,
+          message: `Students cannot transition from '${currentStatus}' to '${status}'. Allowed transitions: ${(allowedTransitions[currentStatus].length > 0 ? allowedTransitions[currentStatus].join(', ') : 'none')}`,
+        });
+      }
+
+      isAuthorized = true;
+      updateReason = 'Student team member: transition validated';
+    }
+
+    if (!isAuthorized) {
+      return res.status(403).json({
+        success: false,
+        message: 'You are not authorized to update this project status',
+      });
+    }
+
+    // Update status
+    project.status = status;
+    project.updatedAt = Date.now();
+    await project.save();
+    await project.populate('facultyId classroomId');
+
+    // Create notification if student updates status
+    if (role === 'student' && currentStatus !== status) {
+      const statusChangeNotification = {
+        userId: project.facultyId._id,
+        message: `Project "${project.projectTitle}" status changed to "${status}" by a team member`,
+        type: 'project_status',
+        projectId: project._id,
+      };
+      await Notification.create(statusChangeNotification);
+    }
+
+    console.log(`[PROJECT STATUS UPDATE] Project: ${project._id}, Status: ${currentStatus} → ${status}, User: ${userId} (${role}), Reason: ${updateReason}`);
+
+    res.status(200).json({
+      success: true,
+      message: `Project status updated from '${currentStatus}' to '${status}' successfully`,
       data: project,
     });
   } catch (error) {
@@ -263,7 +410,7 @@ exports.addTeamMember = async (req, res, next) => {
 
     project.teamMembers.push({
       rollNumber,
-      userId: user ? user._id : null,
+      userId: user._id,
     });
 
     await project.save();
@@ -321,7 +468,7 @@ exports.deleteProject = async (req, res, next) => {
  */
 exports.getAssignedProjects = async (req, res, next) => {
   try {
-    const { _id, rollNumber } = req.user;
+    const { rollNumber } = req.user;
 
     if (!rollNumber) {
       return res.status(400).json({
@@ -337,10 +484,105 @@ exports.getAssignedProjects = async (req, res, next) => {
       .populate('facultyId classroomId')
       .sort({ createdAt: -1 });
 
+    // Check and update overdue status for all projects
+    await checkAndUpdateMultipleProjects(projects);
+
     res.status(200).json({
       success: true,
       count: projects.length,
       data: projects,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * Add project update/comment
+ * Students and Faculty can add updates to projects
+ */
+exports.addProjectUpdate = async (req, res, next) => {
+  try {
+    const { userId, role, rollNumber } = req.user;
+    const { message } = req.body;
+
+    // Validate message
+    if (!message || message.trim().length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'Update message cannot be empty',
+      });
+    }
+
+    // Find project
+    const project = await Project.findById(req.params.id).populate('teamMembers.userId facultyId');
+    if (!project) {
+      return res.status(404).json({
+        success: false,
+        message: 'Project not found',
+      });
+    }
+
+    // Authorization check
+    let isAuthorized = false;
+    if (role === 'faculty' && project.facultyId._id.toString() === userId.toString()) {
+      isAuthorized = true;
+    } else if (role === 'student') {
+      isAuthorized = project.teamMembers.some(m => m.userId._id.toString() === userId.toString());
+    }
+
+    if (!isAuthorized) {
+      return res.status(403).json({
+        success: false,
+        message: 'You are not authorized to add updates to this project',
+      });
+    }
+
+    // Add update to project
+    project.updates.push({
+      userId,
+      role,
+      message: message.trim(),
+      createdAt: new Date(),
+    });
+
+    await project.save();
+    await project.populate('teamMembers.userId facultyId');
+
+    // Create notifications
+    const notificationsToCreate = [];
+    const projectTitle = project.projectTitle;
+
+    if (role === 'student') {
+      // If student posts, notify faculty
+      notificationsToCreate.push({
+        userId: project.facultyId._id,
+        message: `New update on project "${projectTitle}" from a team member`,
+        type: 'project_update',
+        projectId: project._id,
+      });
+    } else if (role === 'faculty') {
+      // If faculty posts, notify all team members
+      const teamMemberNotifications = project.teamMembers
+        .filter(m => m.userId)
+        .map(m => ({
+          userId: m.userId._id,
+          message: `Faculty posted an update on project "${projectTitle}"`,
+          type: 'project_update',
+          projectId: project._id,
+        }));
+      notificationsToCreate.push(...teamMemberNotifications);
+    }
+
+    if (notificationsToCreate.length > 0) {
+      await Notification.insertMany(notificationsToCreate);
+    }
+
+    // Return updated project with new update
+    res.status(201).json({
+      success: true,
+      message: 'Update posted successfully',
+      data: project,
     });
   } catch (error) {
     next(error);

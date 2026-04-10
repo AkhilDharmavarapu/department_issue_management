@@ -7,8 +7,10 @@ const {
   getAssignedProjects,
   getProjectById,
   updateProject,
+  updateProjectStatus,
   addTeamMember,
   deleteProject,
+  addProjectUpdate,
 } = require('../controllers/projectController');
 const { authMiddleware, facultyOnly } = require('../middleware/auth');
 
@@ -48,8 +50,22 @@ router.get('/assigned', authMiddleware, getAssignedProjects);
 router.get('/:id', authMiddleware, getProjectById);
 
 /**
+ * PUT /api/projects/:id/status
+ * Update project status with role-based validation
+ * Students (team members) and Faculty (creator) can update
+ */
+router.put('/:id/status', authMiddleware, updateProjectStatus);
+
+/**
+ * POST /api/projects/:id/update
+ * Add project update/comment
+ * Students and Faculty can add updates
+ */
+router.post('/:id/update', authMiddleware, addProjectUpdate);
+
+/**
  * PUT /api/projects/:id
- * Update a project
+ * Update a project details (title, description, deadline, etc)
  * Faculty creator only
  */
 router.put('/:id', authMiddleware, facultyOnly, updateProject);

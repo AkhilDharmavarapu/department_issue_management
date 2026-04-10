@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { projectAPI } from '../../services/api';
 
-const ManageTeamMembers = () => {
+const ManageTeamMembers = ({ onBack }) => {
   const navigate = useNavigate();
   const [projects, setProjects] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -56,7 +56,7 @@ const ManageTeamMembers = () => {
     <div className="p-8 bg-gradient-to-br from-slate-900 to-slate-800 min-h-screen">
       <div className="max-w-4xl mx-auto">
         <button
-          onClick={() => navigate('/faculty/dashboard?tab=overview')}
+          onClick={onBack}
           className="inline-flex items-center gap-2 text-green-400 hover:text-green-300 mb-6 transition-colors"
         >
           <span className="text-2xl">←</span>

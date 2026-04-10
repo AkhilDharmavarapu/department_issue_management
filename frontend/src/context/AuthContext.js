@@ -15,25 +15,57 @@ export const AuthProvider = ({ children }) => {
   // Check if user is already logged in on app load
 useEffect(() => {
   const loadUser = async () => {
-    const storedToken = localStorage.getItem('token');
+    try {
+      const storedToken = localStorage.getItem('token');
+      console.log('[AUTH] Page load check - Token exists:', !!storedToken);
 
-    if (storedToken) {
-      setToken(storedToken);
+      if (storedToken) {
+        // Set token in state FIRST before making API call
+        // This ensures interceptor has the token available
+        setToken(storedToken);
 
-      try {
-        const res = await authAPI.getMe();
-        const userData = res.data.user;
+        try {
+          console.log('[AUTH] Fetching user profile...');
+          const res = await authAPI.getMe();
+          const userData = res.data.data;
 
-        setUser({
-          ...userData,
-          role: userData.role.toLowerCase(),
-        });
-      } catch (err) {
-        logout();
+          console.log('[AUTH] User profile loaded successfully:', {
+            email: userData.email,
+            role_from_db: userData.role,
+            role_after_transform: userData.role.toLowerCase(),
+          });
+          setUser({
+            ...userData,
+            role: userData.role.toLowerCase(),
+          });
+          setError(null);
+        } catch (err) {
+          console.error('[AUTH] Failed to load user profile:', {
+            status: err.response?.status,
+            message: err.response?.data?.message,
+            error: err.message,
+          });
+
+          // Only logout if token is actually invalid (not transient error)
+          if (err.response?.status === 401) {
+            console.warn('[AUTH] Token invalid on page load, clearing auth');
+            localStorage.removeItem('token');
+            setToken(null);
+            setUser(null);
+          } else {
+            // For other errors, keep token but log the error
+            setError('Failed to load user profile. Please refresh if issue persists.');
+          }
+        }
+      } else {
+        console.log('[AUTH] No token found, user not authenticated');
       }
+    } catch (err) {
+      console.error('[AUTH] Unexpected error during auth check:', err);
+      setError('Authentication check failed');
+    } finally {
+      setLoading(false);
     }
-
-    setLoading(false);
   };
 
   loadUser();
@@ -46,21 +78,51 @@ useEffect(() => {
     setLoading(true);
     setError(null);
     try {
+      console.log('[AUTH] Login attempt for:', email);
+      
       const response = await authAPI.login(email, password);
-      const { token, user } = response.data;
+      const { token } = response.data;
 
-      // Store in localStorage
+      console.log('[AUTH] Login successful, storing token');
+      
+      // Store token in localStorage FIRST
       localStorage.setItem('token', token);
-      localStorage.setItem('user', JSON.stringify(user));
-
-      // Update state
       setToken(token);
-      setUser(user);
 
-      return { success: true, user };
+      // Then fetch real user data
+      console.log('[AUTH] Fetching user profile after login');
+      const res = await authAPI.getMe();
+      const userData = res.data.data;
+
+      const transformedUser = {
+        ...userData,
+        role: userData.role.toLowerCase(),
+      };
+      
+      console.log('[AUTH] User authenticated:', {
+        email: userData.email,
+        role_from_db: userData.role,
+        role_stored: transformedUser.role,
+      });
+      setUser(transformedUser);
+      setError(null);
+
+      return { success: true, user: transformedUser };
     } catch (err) {
+      console.error('[AUTH] Login failed:', {
+        status: err.response?.status,
+        message: err.response?.data?.message,
+        error: err.message,
+      });
+      
+      // Clear any partial state on login failure
+      localStorage.removeItem('token');
+      setToken(null);
+      setUser(null);
+      
       const errorMessage = err.response?.data?.message || 'Login failed';
       setError(errorMessage);
+      
       return { success: false, error: errorMessage };
     } finally {
       setLoading(false);
@@ -71,8 +133,8 @@ useEffect(() => {
    * Logout user
    */
   const logout = () => {
+    console.log('[AUTH] Logging out user');
     localStorage.removeItem('token');
-    localStorage.removeItem('user');
     setToken(null);
     setUser(null);
     setError(null);
@@ -83,7 +145,6 @@ useEffect(() => {
    */
   const updateUser = (updatedUser) => {
     setUser(updatedUser);
-    localStorage.setItem('user', JSON.stringify(updatedUser));
   };
 
   const value = {

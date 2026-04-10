@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import NotificationBell from '../components/NotificationBell';
 import ReportIssue from './student/ReportIssue';
 import ViewMyIssues from './student/ViewMyIssues';
+import ViewMyProjects from './student/ViewMyProjects';
 import { statsAPI, authAPI, timetableAPI, projectAPI } from '../services/api';
 
 const API_BASE = process.env.REACT_APP_API_URL?.replace('/api', '') || 'http://localhost:5000';
@@ -44,7 +46,7 @@ const StudentDashboard = () => {
     const params = new URLSearchParams(location.search);
     const tabParam = params.get('tab');
     if (tabParam) setActiveTab(tabParam);
-  }, [location]);
+  }, [location.search]);
 
   const fetchTimetable = async (classroomId) => {
     setTimetableLoading(true);
@@ -115,6 +117,11 @@ const StudentDashboard = () => {
 
         {/* Main Content */}
         <div className="flex-1 overflow-y-auto">
+          {/* Top Header */}
+          <div className="bg-slate-800 border-b border-green-500/20 px-8 py-4 flex justify-end items-center">
+            <NotificationBell />
+          </div>
+
           {activeTab === 'overview' && (
             <div className="p-8 bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 min-h-screen">
               <div className="mb-12">
@@ -211,85 +218,19 @@ const StudentDashboard = () => {
             </div>
           )}
 
-          {activeTab === 'projects' && (
-            <div className="p-8 bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 min-h-screen">
-              <div className="mb-8">
-                <h1 className="text-4xl font-bold text-white mb-2">📂 My Projects</h1>
-                <p className="text-green-300/70">Projects assigned to you</p>
-                <div className="h-1 w-24 bg-gradient-to-r from-green-500 to-emerald-500 mt-4 rounded-full"></div>
-              </div>
+          {activeTab === 'projects' && <ViewMyProjects onBack={() => setActiveTab('overview')} />}
 
-              {assignedProjects && assignedProjects.length > 0 ? (
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-                  {assignedProjects.map(project => (
-                    <div key={project._id} className="bg-slate-800 rounded-xl shadow-lg p-6 border border-green-500/20 hover:border-green-500/50 transition-all duration-300">
-                      <div className="mb-4">
-                        <h3 className="text-lg font-bold text-white mb-2">{project.projectTitle}</h3>
-                        <div className="flex gap-2 mb-3">
-                          <span className="px-3 py-1 bg-green-500/20 text-green-300 border border-green-500/30 rounded-full text-xs font-semibold">
-                            {project.subject}
-                          </span>
-                          <span className={`px-3 py-1 rounded-full text-xs font-semibold border ${
-                            project.status === 'submitted' ? 'bg-blue-500/20 text-blue-300 border-blue-500/30' :
-                            project.status === 'evaluated' ? 'bg-purple-500/20 text-purple-300 border-purple-500/30' :
-                            project.status === 'in_progress' ? 'bg-yellow-500/20 text-yellow-300 border-yellow-500/30' :
-                            'bg-gray-500/20 text-gray-300 border-gray-500/30'
-                          }`}>
-                            {project.status.replace(/_/g, ' ')}
-                          </span>
-                        </div>
-                      </div>
-
-                      <div className="space-y-2 mb-4 text-sm">
-                        <div>
-                          <p className="text-green-300/70 text-xs font-semibold">Classroom</p>
-                          <p className="text-white">
-                            {project.classroomId
-                              ? `${project.classroomId.department} - Year ${project.classroomId.year} - Section ${project.classroomId.section}`
-                              : 'N/A'}
-                          </p>
-                        </div>
-                        <div>
-                          <p className="text-green-300/70 text-xs font-semibold">Deadline</p>
-                          <p className="text-white">{new Date(project.deadline).toLocaleDateString()}</p>
-                        </div>
-                        <div>
-                          <p className="text-green-300/70 text-xs font-semibold">Team Members ({project.teamMembers?.length || 0})</p>
-                          <div className="flex flex-wrap gap-2 mt-1">
-                            {project.teamMembers && project.teamMembers.length > 0 ? (
-                              project.teamMembers.map((member, idx) => (
-                                <span key={idx} className="px-2 py-1 bg-slate-700 text-gray-300 border border-slate-600 rounded text-xs">
-                                  {member.rollNumber}
-                                </span>
-                              ))
-                            ) : (
-                              <span className="text-gray-400 text-xs">No team members</span>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-
-                      {project.description && (
-                        <div className="pt-3 border-t border-green-500/20">
-                          <p className="text-gray-300 text-xs line-clamp-2">{project.description}</p>
-                        </div>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <div className="bg-slate-800 rounded-xl p-12 border border-green-500/20 text-center">
-                  <p className="text-green-300/70 text-lg">No projects assigned to you yet</p>
-                  <p className="text-gray-400 text-sm mt-2">Faculty members will assign projects to your team</p>
-                </div>
-              )}
-            </div>
-          )}
-
-          {activeTab === 'report' && <ReportIssue />}
-          {activeTab === 'issues' && <ViewMyIssues />}
+          {activeTab === 'report' && <ReportIssue onBack={() => setActiveTab('overview')} />}
+          {activeTab === 'issues' && <ViewMyIssues onBack={() => setActiveTab('overview')} />}
           {activeTab === 'timetable' && (
             <div className="p-8 bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 min-h-screen">
+              <button
+                onClick={() => setActiveTab('overview')}
+                className="inline-flex items-center gap-2 text-green-400 hover:text-green-300 mb-6 transition-colors"
+              >
+                <span className="text-2xl">←</span>
+                <span className="font-semibold">Back to Dashboard</span>
+              </button>
               <div className="mb-8">
                 <h1 className="text-4xl font-bold text-white mb-2">📅 My Timetable</h1>
                 <p className="text-green-300/70">

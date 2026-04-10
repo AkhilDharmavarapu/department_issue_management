@@ -1,6 +1,7 @@
 import axios from 'axios';
 
 const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
+console.log("API BASE URL:", API_BASE_URL);
 
 /**
  * Create axios instance with default configuration
@@ -20,6 +21,10 @@ apiClient.interceptors.request.use(
     const token = localStorage.getItem('token');
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
+      // DEBUG: Log token being sent
+      console.log('[API] Request to:', config.url, '- Token attached:', !!token);
+    } else {
+      console.log('[API] Request to:', config.url, '- No token available');
     }
     return config;
   },
@@ -30,19 +35,44 @@ apiClient.interceptors.request.use(
 
 /**
  * Interceptor to handle response errors
+ * IMPORTANT: Be selective about when to logout
+ * Only logout on actual auth failures, not on transient errors
  */
 apiClient.interceptors.response.use(
   (response) => response,
   (error) => {
     const status = error.response?.status;
+    const message = error.response?.data?.message || '';
 
-if (status === 401 || status === 403) {
-  localStorage.removeItem('token');
+    // DEBUG: Log auth-related errors
+    if (status === 401 || status === 403) {
+      console.warn('[AUTH DEBUG] API Error:', {
+        status,
+        message,
+        path: error.config?.url,
+        timestamp: new Date().toISOString(),
+      });
+    }
 
-  if (window.location.pathname !== '/login') {
-    window.location.href = '/login';
-  }
-}
+    // Only redirect to login if:
+    // 1. User is NOT already on login page
+    // 2. Token exists in localStorage (meaning we were authenticated)
+    // 3. Error clearly indicates auth failure (not a transient error)
+    if (status === 401 && window.location.pathname !== '/login') {
+      const token = localStorage.getItem('token');
+      
+      // Only logout if we had a token and now it's invalid
+      if (token) {
+        console.warn('[AUTH] Token invalidated, logging out');
+        localStorage.removeItem('token');
+        
+        // Redirect only if not already on login page
+        if (window.location.pathname !== '/login') {
+          window.location.href = '/login';
+        }
+      }
+    }
+
     return Promise.reject(error);
   }
 );
@@ -146,8 +176,12 @@ export const projectAPI = {
     apiClient.get(`/projects/${id}`),
   updateProject: (id, data) =>
     apiClient.put(`/projects/${id}`, data),
+  updateProjectStatus: (id, data) =>
+    apiClient.put(`/projects/${id}/status`, data),
   addTeamMember: (id, data) =>
     apiClient.post(`/projects/${id}/team-members`, data),
+  addProjectUpdate: (id, data) =>
+    apiClient.post(`/projects/${id}/update`, data),
   deleteProject: (id) =>
     apiClient.delete(`/projects/${id}`),
 };
@@ -176,6 +210,19 @@ export const statsAPI = {
     apiClient.get('/stats/faculty'),
   getStudentStats: () =>
     apiClient.get('/stats/student'),
+};
+
+// ==================== Notification APIs ====================
+
+export const notificationAPI = {
+  getNotifications: () =>
+    apiClient.get('/notifications'),
+  markAsRead: (id) =>
+    apiClient.put(`/notifications/${id}/read`),
+  markAllAsRead: () =>
+    apiClient.put('/notifications/read-all'),
+  deleteNotification: (id) =>
+    apiClient.delete(`/notifications/${id}`),
 };
 
 export default apiClient;

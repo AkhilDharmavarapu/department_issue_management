@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { utilityAPI } from '../../services/api';
 
-const Utilities = () => {
+const Utilities = ({ onBack }) => {
   const navigate = useNavigate();
   const [utilities, setUtilities] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -108,7 +108,7 @@ const Utilities = () => {
 
   return (
     <div className="p-8 bg-gradient-to-br from-slate-900 to-slate-800 min-h-screen">
-      <button onClick={() => navigate('/admin/dashboard?tab=overview')} className="inline-flex items-center gap-2 text-green-400 hover:text-green-300 mb-4 transition-colors">
+      <button onClick={onBack} className="inline-flex items-center gap-2 text-green-400 hover:text-green-300 mb-4 transition-colors">
         <span className="text-2xl">←</span>
         <span className="font-semibold">Back to Dashboard</span>
       </button>

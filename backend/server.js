@@ -11,8 +11,11 @@ const app = express();
 
 // CORS configuration — restrict to frontend origin
 app.use(cors({
-  origin: process.env.FRONTEND_URL || 'http://localhost:3000',
-  credentials: true,
+  origin: [
+    'http://localhost:3000',
+    'https://nm39b11r-3000.incl.devtunnels.ms'
+  ],
+  credentials: true
 }));
 
 // Body parser middleware with size limits
@@ -37,6 +40,7 @@ const issueRoutes = require('./routes/issue');
 const projectRoutes = require('./routes/project');
 const timetableRoutes = require('./routes/timetable');
 const statsRoutes = require('./routes/stats');
+const notificationRoutes = require('./routes/notification');
 
 /**
  * Authentication Routes
@@ -107,6 +111,15 @@ app.use('/api/projects', projectRoutes);
 app.use('/api/timetable', timetableRoutes);
 app.use('/api/stats', statsRoutes);
 
+/**
+ * Notification Routes
+ * GET /api/notifications - Get user's notifications (Authenticated)
+ * PUT /api/notifications/:id/read - Mark as read (Authenticated)
+ * PUT /api/notifications/read-all - Mark all as read (Authenticated)
+ * DELETE /api/notifications/:id - Delete notification (Authenticated)
+ */
+app.use('/api/notifications', notificationRoutes);
+
 // ==================== ERROR HANDLING ====================
 
 /**
@@ -133,11 +146,11 @@ const NODE_ENV = process.env.NODE_ENV || 'development';
 
 const server = app.listen(PORT, () => {
   console.log(`
-================================
+
 Server Running Successfully
 Port: ${PORT}
 Environment: ${NODE_ENV}
-================================
+
   `);
 });
 

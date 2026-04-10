@@ -1,16 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { projectAPI } from '../../services/api';
 
-const formatClassroom = (c) =>
-  c ? `${c.department} - Year ${c.year} - Section ${c.section}` : '—';
-
 const ViewMyProjects = ({ onBack }) => {
-  const navigate = useNavigate();
   const [projects, setProjects] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const [filterStatus, setFilterStatus] = useState('');
   const [selectedProject, setSelectedProject] = useState(null);
   const [updatingStatus, setUpdatingStatus] = useState(false);
   const [statusUpdateError, setStatusUpdateError] = useState('');
@@ -21,25 +15,52 @@ const ViewMyProjects = ({ onBack }) => {
 
   useEffect(() => {
     fetchProjects();
-  }, [filterStatus]);
+  }, []);
 
   const fetchProjects = async () => {
     setLoading(true);
     try {
-      const response = await projectAPI.getMyProjects();
-      let filtered = response.data.data;
-      
-      if (filterStatus) {
-        filtered = filtered.filter(p => p.status === filterStatus);
-      }
-      
-      setProjects(filtered);
+      const response = await projectAPI.getAssignedProjects();
+      setProjects(response.data.data || []);
       setError('');
     } catch (err) {
       setError(err.response?.data?.message || 'Failed to fetch projects');
     } finally {
       setLoading(false);
     }
+  };
+
+  const getStatusColor = (status) => {
+    const colors = {
+      not_started: 'bg-gray-500/20 text-gray-300 border-gray-500/30',
+      in_progress: 'bg-blue-500/20 text-blue-300 border-blue-500/30',
+      submitted: 'bg-yellow-500/20 text-yellow-300 border-yellow-500/30',
+      evaluated: 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30',
+      overdue: 'bg-red-500/20 text-red-300 border-red-500/30',
+    };
+    return colors[status] || 'bg-gray-500/20 text-gray-300 border-gray-500/30';
+  };
+
+  const getStatusLabel = (status) => {
+    const labels = {
+      not_started: 'Not Started',
+      in_progress: 'In Progress',
+      submitted: 'Submitted',
+      evaluated: 'Evaluated',
+      overdue: '⚠️ Overdue',
+    };
+    return labels[status] || status;
+  };
+
+  const getNextStatus = (currentStatus) => {
+    const transitions = {
+      'not_started': 'in_progress',
+      'in_progress': 'submitted',
+      'submitted': null, // Students cannot progress further
+      'evaluated': null,
+      'overdue': 'in_progress', // Allow overdue projects to progress to in_progress
+    };
+    return transitions[currentStatus];
   };
 
   const handleUpdateStatus = async (projectId, newStatus) => {
@@ -49,12 +70,12 @@ const ViewMyProjects = ({ onBack }) => {
 
     try {
       const response = await projectAPI.updateProjectStatus(projectId, { status: newStatus });
-      
+
       // Update the selected project with the new status
       setSelectedProject(response.data.data);
-      
+
       // Also update in the projects list
-      setProjects(projects.map(p => 
+      setProjects(projects.map(p =>
         p._id === projectId ? response.data.data : p
       ));
 
@@ -88,36 +109,8 @@ const ViewMyProjects = ({ onBack }) => {
     }
   };
 
-  const getStatusColor = (status) => {
-    const colors = {
-      not_started: 'bg-gray-500/20 text-gray-300 border-gray-500/30',
-      in_progress: 'bg-blue-500/20 text-blue-300 border-blue-500/30',
-      submitted: 'bg-yellow-500/20 text-yellow-300 border-yellow-500/30',
-      evaluated: 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30',
-      overdue: 'bg-red-500/20 text-red-300 border-red-500/30',
-    };
-    return colors[status] || 'bg-gray-500/20 text-gray-300 border-gray-500/30';
-  };
-
-  const getStatusLabel = (status) => {
-    const labels = {
-      not_started: 'Not Started',
-      in_progress: 'In Progress',
-      submitted: 'Submitted',
-      evaluated: 'Evaluated',
-      overdue: '⚠️ Overdue',
-    };
-    return labels[status] || status;
-  };
-
-  const filterButtons = [
-    { label: 'All', value: '' },
-    { label: 'Not Started', value: 'not_started' },
-    { label: 'In Progress', value: 'in_progress' },
-    { label: 'Submitted', value: 'submitted' },
-    { label: 'Evaluated', value: 'evaluated' },
-    { label: 'Overdue', value: 'overdue' },
-  ];
+  const formatClassroom = (c) =>
+    c ? `${c.department} - Year ${c.year} - Section ${c.section}` : '—';
 
   return (
     <div className="p-8 bg-gradient-to-br from-slate-900 to-slate-800 min-h-screen">
@@ -128,23 +121,10 @@ const ViewMyProjects = ({ onBack }) => {
         <span className="text-2xl">←</span>
         <span className="font-semibold">Back to Dashboard</span>
       </button>
+
       <div className="mb-8">
-        <h1 className="text-4xl font-bold text-white mb-4">📋 My Projects</h1>
-        <div className="flex gap-2 flex-wrap">
-          {filterButtons.map(btn => (
-            <button
-              key={btn.value}
-              onClick={() => setFilterStatus(btn.value)}
-              className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-300 ${
-                filterStatus === btn.value
-                  ? 'bg-gradient-to-r from-green-600 to-emerald-600 text-white shadow-lg'
-                  : 'bg-slate-700/50 text-gray-300 hover:bg-slate-700 border border-slate-600/30'
-              }`}
-            >
-              {btn.label}
-            </button>
-          ))}
-        </div>
+        <h1 className="text-4xl font-bold text-white mb-2">📂 My Projects</h1>
+        <p className="text-green-300/70">Manage your assigned projects</p>
       </div>
 
       {error && (
@@ -160,13 +140,18 @@ const ViewMyProjects = ({ onBack }) => {
         </div>
       ) : projects.length === 0 ? (
         <div className="text-center py-12 bg-slate-800 rounded-2xl border border-green-500/20">
-          <div className="text-5xl mb-4">📋</div>
-          <p className="text-green-300/70 text-lg">No projects found</p>
+          <div className="text-5xl mb-4">📂</div>
+          <p className="text-green-300/70 text-lg">No projects assigned to you yet</p>
+          <p className="text-gray-400 text-sm mt-2">Faculty members will assign projects to your team</p>
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {projects.map(project => (
-            <div key={project._id} className="bg-slate-800 rounded-2xl shadow-lg p-6 border-l-4 border-green-500 border-r border-t border-b border-r-green-500/10 border-t-green-500/10 border-b-green-500/10 hover:border-r-green-500/30 hover:border-t-green-500/30 hover:border-b-green-500/30 transition-all duration-300">
+            <div
+              key={project._id}
+              className="bg-slate-800 rounded-2xl shadow-lg p-6 border-l-4 border-green-500 border-r border-t border-b border-r-green-500/10 border-t-green-500/10 border-b-green-500/10 hover:border-r-green-500/30 hover:border-t-green-500/30 hover:border-b-green-500/30 transition-all duration-300 cursor-pointer hover:shadow-xl"
+              onClick={() => setSelectedProject(project)}
+            >
               <div className="flex justify-between items-start mb-3">
                 <div>
                   <h3 className="text-lg font-bold text-white">{project.projectTitle}</h3>
@@ -180,7 +165,7 @@ const ViewMyProjects = ({ onBack }) => {
               <div className="grid grid-cols-2 gap-4 mb-4 text-xs">
                 <div>
                   <p className="text-green-300/70">Team Members</p>
-                  <p className="text-white font-medium">{project.teamMembers?.length || 0}/{project.maxTeamSize}</p>
+                  <p className="text-white font-medium">{project.teamMembers?.length || 0}</p>
                 </div>
                 <div>
                   <p className="text-green-300/70">Deadline</p>
@@ -195,7 +180,10 @@ const ViewMyProjects = ({ onBack }) => {
               </div>
 
               <button
-                onClick={() => setSelectedProject(project)}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setSelectedProject(project);
+                }}
                 className="w-full bg-green-600 hover:bg-green-700 text-white py-2 px-4 rounded-lg text-sm font-semibold transition-all transform hover:scale-105"
               >
                 View Details
@@ -217,9 +205,16 @@ const ViewMyProjects = ({ onBack }) => {
                 ×
               </button>
             </div>
+
             <p className="text-green-300/70 mb-4">
               <strong>Subject:</strong> {selectedProject.subject}
             </p>
+
+            {selectedProject.description && (
+              <p className="text-gray-300 mb-4">
+                <strong>Description:</strong> {selectedProject.description}
+              </p>
+            )}
 
             <div className="grid grid-cols-2 gap-4 mb-4 p-3 bg-slate-700/50 rounded-lg border border-slate-600/30">
               <div>
@@ -229,16 +224,16 @@ const ViewMyProjects = ({ onBack }) => {
                 </span>
               </div>
               <div>
-                <p className="text-green-300/70 text-xs">Max Team Size</p>
-                <p className="text-white font-medium">{selectedProject.maxTeamSize}</p>
-              </div>
-              <div>
                 <p className="text-green-300/70 text-xs">Deadline</p>
                 <p className="text-white font-medium">{new Date(selectedProject.deadline).toLocaleDateString()}</p>
               </div>
               <div>
                 <p className="text-green-300/70 text-xs">Classroom</p>
                 <p className="text-white font-medium text-sm">{formatClassroom(selectedProject.classroomId)}</p>
+              </div>
+              <div>
+                <p className="text-green-300/70 text-xs">Faculty</p>
+                <p className="text-white font-medium text-sm">{selectedProject.facultyId?.name || '—'}</p>
               </div>
             </div>
 
@@ -269,7 +264,7 @@ const ViewMyProjects = ({ onBack }) => {
                 <textarea
                   value={updateMessage}
                   onChange={(e) => setUpdateMessage(e.target.value)}
-                  placeholder="Post an update for your team..."
+                  placeholder="Update your progress or ask faculty questions..."
                   className="flex-1 bg-slate-700/50 border border-slate-600 text-white rounded-lg p-2 text-sm focus:outline-none focus:border-green-500/50 resize-none"
                   rows="2"
                 />
@@ -298,7 +293,7 @@ const ViewMyProjects = ({ onBack }) => {
                     </div>
                   ))
                 ) : (
-                  <p className="text-gray-400 text-sm text-center py-4">No updates yet. Be the first to post! 🚀</p>
+                  <p className="text-gray-400 text-sm text-center py-4">No updates yet. Start collaborating! 🚀</p>
                 )}
               </div>
             </div>
@@ -316,16 +311,16 @@ const ViewMyProjects = ({ onBack }) => {
             )}
 
             <div className="flex gap-3">
-              {selectedProject.status === 'submitted' && (
+              {getNextStatus(selectedProject.status) && (
                 <button
-                  onClick={() => handleUpdateStatus(selectedProject._id, 'evaluated')}
+                  onClick={() => handleUpdateStatus(selectedProject._id, getNextStatus(selectedProject.status))}
                   disabled={updatingStatus}
-                  className="flex-1 bg-emerald-600 hover:bg-emerald-700 disabled:bg-emerald-600/50 disabled:cursor-not-allowed text-white px-4 py-2 rounded-lg font-semibold transition-all"
+                  className="flex-1 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-600/50 disabled:cursor-not-allowed text-white px-4 py-2 rounded-lg font-semibold transition-all"
                 >
-                  {updatingStatus ? '⏳ Updating...' : '✅ Mark as Evaluated'}
+                  {updatingStatus ? '⏳ Updating...' : `📝 Mark as ${getStatusLabel(getNextStatus(selectedProject.status))}`}
                 </button>
               )}
-              
+
               <button
                 onClick={() => setSelectedProject(null)}
                 className="flex-1 bg-slate-700 hover:bg-slate-600 text-gray-300 px-4 py-2 rounded-lg transition-all"

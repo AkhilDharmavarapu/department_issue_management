@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import NotificationBell from '../components/NotificationBell';
 import CreateProject from './faculty/CreateProject';
 import ViewMyProjects from './faculty/ViewMyProjects';
 import ManageTeamMembers from './faculty/ManageTeamMembers';
@@ -30,7 +31,7 @@ const FacultyDashboard = () => {
     const params = new URLSearchParams(location.search);
     const tabParam = params.get('tab');
     if (tabParam) setActiveTab(tabParam);
-  }, [location]);
+  }, [location.search]);
 
   const handleLogout = () => {
     logout();
@@ -86,6 +87,11 @@ const FacultyDashboard = () => {
 
         {/* Main Content */}
         <div className="flex-1 overflow-y-auto">
+          {/* Top Header */}
+          <div className="bg-slate-800 border-b border-green-500/20 px-8 py-4 flex justify-end items-center">
+            <NotificationBell />
+          </div>
+
           {activeTab === 'overview' && (
             <div className="p-8 bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 min-h-screen">
               <div className="mb-12">
@@ -167,10 +173,10 @@ const FacultyDashboard = () => {
             </div>
           )}
 
-          {activeTab === 'create' && <CreateProject />}
-          {activeTab === 'projects' && <ViewMyProjects />}
-          {activeTab === 'issues' && <ViewClassroomIssues />}
-          {activeTab === 'team' && <ManageTeamMembers />}
+          {activeTab === 'create' && <CreateProject onBack={() => setActiveTab('overview')} />}
+          {activeTab === 'projects' && <ViewMyProjects onBack={() => setActiveTab('overview')} />}
+          {activeTab === 'issues' && <ViewClassroomIssues onBack={() => setActiveTab('overview')} />}
+          {activeTab === 'team' && <ManageTeamMembers onBack={() => setActiveTab('overview')} />}
         </div>
       </div>
     </div>

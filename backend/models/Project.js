@@ -48,9 +48,32 @@ const projectSchema = new mongoose.Schema(
     },
     status: {
       type: String,
-      enum: ['not_started', 'in_progress', 'submitted', 'evaluated'],
+      enum: ['not_started', 'in_progress', 'submitted', 'evaluated', 'overdue'],
       default: 'not_started',
     },
+    updates: [
+      {
+        userId: {
+          type: mongoose.Schema.Types.ObjectId,
+          ref: 'User',
+          required: true,
+        },
+        role: {
+          type: String,
+          enum: ['student', 'faculty'],
+          required: true,
+        },
+        message: {
+          type: String,
+          required: true,
+          trim: true,
+        },
+        createdAt: {
+          type: Date,
+          default: Date.now,
+        },
+      },
+    ],
   },
   {
     timestamps: true,

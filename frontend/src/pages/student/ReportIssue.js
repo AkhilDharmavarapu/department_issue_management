@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { issueAPI, authAPI } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
 
-const ReportIssue = () => {
+const ReportIssue = ({ onBack }) => {
   const navigate = useNavigate();
   const { user } = useAuth();
   const [loading, setLoading] = useState(false);
@@ -57,7 +57,7 @@ const ReportIssue = () => {
   return (
     <div className="p-8 bg-gradient-to-br from-slate-900 to-slate-800 min-h-screen">
       <button
-        onClick={() => navigate('/student/dashboard?tab=overview')}
+        onClick={onBack}
         className="mb-4 px-4 py-2 bg-gray-600 text-white rounded hover:bg-gray-700 flex items-center gap-2"
       >
         ← Back to Dashboard

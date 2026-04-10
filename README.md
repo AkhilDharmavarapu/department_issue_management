@@ -76,6 +76,29 @@ frontend/
 └── package.json
 ```
 
+## ⚡ Quick Start Guide
+
+If you're familiar with Node.js and have everything set up, run these commands:
+
+```bash
+# Backend
+cd backend
+npm install
+node reset-users.js
+npm run dev
+
+# Frontend (in a new terminal)
+cd frontend
+npm install
+npm start
+```
+
+Then log in at `http://localhost:3000` with:
+- Email: `admin@college.edu`
+- Password: `password123`
+
+---
+
 ## 🚀 Getting Started
 
 ### Prerequisites
@@ -108,12 +131,28 @@ frontend/
    NODE_ENV=development
    ```
 
-5. **Start the server**
+5. **Seed the database with test users**
+   ```bash
+   node reset-users.js
+   ```
+   This creates demo users for testing all three roles.
+
+6. **Start the server**
    ```bash
    npm run dev
    ```
 
    Server will run on `http://localhost:5000`
+
+### Test Credentials
+
+After seeding the database, use these credentials to log in:
+
+| Role | Email | Password |
+|------|-------|----------|
+| Admin | `admin@college.edu` | `password123` |
+| Faculty | `faculty@college.edu` | `password123` |
+| Student | `student@college.edu` | `password123` |
 
 ### Frontend Setup
 
@@ -138,6 +177,24 @@ frontend/
    ```
 
    App will open at `http://localhost:3000`
+
+### Running Both Servers Simultaneously
+
+To run frontend and backend together:
+
+1. **In Terminal 1 (Backend):**
+   ```bash
+   cd backend
+   npm run dev
+   ```
+
+2. **In Terminal 2 (Frontend):**
+   ```bash
+   cd frontend
+   npm start
+   ```
+
+The frontend will automatically open at `http://localhost:3000` and communicate with the backend at `http://localhost:5000`.
 
 ## 📚 API Endpoints
 
@@ -301,6 +358,57 @@ The application includes comprehensive error handling:
 
 All errors return consistent JSON responses with error messages.
 
+## ❓ Troubleshooting
+
+### Login Failed Error
+**Problem:** "Login failed" message when trying to log in
+
+**Solution:** 
+Make sure you've run the database seeding script:
+```bash
+cd backend
+node reset-users.js
+```
+
+### MongoDB Connection Error
+**Problem:** "MongoDB connection failed" when starting server
+
+**Causes & Solutions:**
+- Check your `MONGODB_URI` in `.env` is correct
+- Verify MongoDB Atlas IP whitelist includes your IP (add 0.0.0.0/0 for development)
+- Ensure MongoDB service is running (for local MongoDB)
+
+### Frontend Can't Reach Backend
+**Problem:** CORS error or API calls failing
+
+**Solution:**
+- Ensure backend is running on `http://localhost:5000`
+- Check that `REACT_APP_API_URL` in frontend `.env.local` is `http://localhost:5000/api`
+- Verify CORS configuration in `backend/server.js` includes localhost:3000
+
+### Port Already in Use
+**Problem:** "Port 5000 is already in use" or "Port 3000 is already in use"
+
+**Solution:**
+Kill the process using the port:
+```powershell
+# For Windows
+netstat -ano | findstr :5000
+taskkill /PID <PID> /F
+```
+
+Or change the PORT in `.env` and `REACT_APP_API_URL`
+
+### Missing Dependencies
+**Problem:** "Module not found" errors
+
+**Solution:**
+```bash
+# Reinstall node_modules
+rm -r node_modules
+npm install
+```
+
 ## 🔄 State Management
 
 The frontend uses React Context API for:
@@ -325,7 +433,11 @@ The frontend uses React Context API for:
 
 ## 📧 Contact & Support
 
-For issues or questions, please contact the development team.
+For issues or questions:
+- Check the **Troubleshooting** section above
+- Review the **API Documentation** for endpoint details
+- Contact the development team for feature requests
+- Submit issues via your project management system
 
 ## 📄 License
 
@@ -333,5 +445,5 @@ This project is proprietary and for internal use only.
 
 ---
 
-**Last Updated:** March 2026
+**Last Updated:** April 10, 2026
 **Version:** 1.0.0
