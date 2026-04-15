@@ -26,9 +26,10 @@ const seedDatabase = async () => {
     // Check if users already exist
     const adminExists = await User.findOne({ email: 'admin@college.edu' });
     const facultyExists = await User.findOne({ email: 'faculty@college.edu' });
+    const hodExists = await User.findOne({ email: 'hod@college.edu' });
     const studentExists = await User.findOne({ email: 'student@college.edu' });
 
-    if (adminExists && facultyExists && studentExists) {
+    if (adminExists && facultyExists && hodExists && studentExists) {
       console.log('✅ Demo users already exist!');
       await mongoose.connection.close();
       return;
@@ -36,7 +37,7 @@ const seedDatabase = async () => {
 
     // Delete existing demo users to recreate them
     await User.deleteMany({
-      email: { $in: ['admin@college.edu', 'faculty@college.edu', 'student@college.edu'] }
+      email: { $in: ['admin@college.edu', 'faculty@college.edu', 'hod@college.edu', 'student@college.edu'] }
     });
 
     // Create demo users using save() to trigger pre-save hooks
@@ -56,6 +57,14 @@ const seedDatabase = async () => {
       isActive: true,
     });
 
+    const hodUser = new User({
+      name: 'HOD User',
+      email: 'hod@college.edu',
+      passwordHash: 'password123',
+      role: 'hod',
+      isActive: true,
+    });
+
     const studentUser = new User({
       name: 'Student User',
       email: 'student@college.edu',
@@ -68,11 +77,13 @@ const seedDatabase = async () => {
     // Save users (triggers password hashing pre-save hook)
     await adminUser.save();
     await facultyUser.save();
+    await hodUser.save();
     await studentUser.save();
 
     console.log('✅ Demo users created successfully:');
     console.log('   - admin@college.edu (admin)');
     console.log('   - faculty@college.edu (faculty)');
+    console.log('   - hod@college.edu (hod)');
     console.log('   - student@college.edu (student)');
     console.log('\n🔐 All passwords: password123');
 

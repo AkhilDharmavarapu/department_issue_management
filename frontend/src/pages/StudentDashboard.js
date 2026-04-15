@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import NotificationBell from '../components/NotificationBell';
+import DashboardLayout from '../components/DashboardLayout';
+import { StatCard, Card } from '../components/CardComponents';
 import ReportIssue from './student/ReportIssue';
 import ViewMyIssues from './student/ViewMyIssues';
 import ViewMyProjects from './student/ViewMyProjects';
@@ -76,199 +77,138 @@ const StudentDashboard = () => {
     { id: 'timetable', label: 'Timetable', icon: '📅' },
   ];
 
-  return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-green-900 to-slate-900">
-      <div className="flex h-screen">
-        {/* Sidebar */}
-        <div className="w-64 bg-gradient-to-b from-slate-900 to-slate-800 text-white p-6 shadow-2xl border-r border-green-500/20 overflow-y-auto flex-shrink-0">
-          <div className="mb-10">
-            <div className="flex items-center gap-3 mb-2">
-              <div className="w-10 h-10 bg-gradient-to-r from-green-500 to-emerald-500 rounded-lg flex items-center justify-center text-xl">🎓</div>
-              <h1 className="text-2xl font-bold bg-gradient-to-r from-green-400 to-emerald-400 bg-clip-text text-transparent">{user?.name || "Student"}</h1>
-            </div>
-            <p className="text-green-300/60 text-xs">Student Panel</p>
+  const renderContent = () => {
+    if (activeTab === 'overview') {
+      const classroomName = profile?.classroomId
+        ? `${profile.classroomId.department} (Year ${profile.classroomId.year}, Section ${profile.classroomId.section})`
+        : '';
+
+      return (
+        <div>
+          {/* Page Title and Description */}
+          <div className="mb-8">
+            <h1 className="text-4xl font-bold text-gray-900 mb-3">Dashboard</h1>
+            <p className="text-gray-500 text-base">Report issues, track submissions, and view your schedule</p>
+            {classroomName && <p className="text-sm text-gray-500 mt-2">{classroomName}</p>}
           </div>
-          <nav className="space-y-2">
-            {menuItems.map(item => (
+
+          {/* Quick Actions */}
+          <div className="mb-8">
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">Quick Actions</h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <button
-                key={item.id}
-                onClick={() => setActiveTab(item.id)}
-                className={`w-full text-left px-4 py-3 rounded-xl transition-all duration-300 ${
-                  activeTab === item.id
-                    ? 'bg-gradient-to-r from-green-600 to-emerald-600 text-white shadow-lg shadow-green-500/30'
-                    : 'bg-slate-700/50 text-gray-300 hover:bg-slate-700 border border-slate-600/30'
-                }`}
+                onClick={() => setActiveTab('report')}
+                className="bg-white rounded-lg border border-gray-200 p-5 hover:shadow-md transition-shadow text-left"
               >
-                <span className="mr-3 text-lg">{item.icon}</span>
-                <span className="font-medium">{item.label}</span>
+                <div className="text-3xl mb-2">🚨</div>
+                <h3 className="font-semibold text-gray-900 text-sm mb-1">Report Issue</h3>
+                <p className="text-xs text-gray-500">Report classroom problems</p>
               </button>
-            ))}
-          </nav>
-          
-          <div className="mt-8 pt-6 border-t border-slate-700">
-            <button
-              onClick={handleLogout}
-              className="w-full bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 text-white font-bold py-3 px-4 rounded-xl transition-all duration-300 shadow-lg"
-            >
-              Logout
-            </button>
-          </div>
-        </div>
-
-        {/* Main Content */}
-        <div className="flex-1 overflow-y-auto">
-          {/* Top Header */}
-          <div className="bg-slate-800 border-b border-green-500/20 px-8 py-4 flex justify-end items-center">
-            <NotificationBell />
-          </div>
-
-          {activeTab === 'overview' && (
-            <div className="p-8 bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 min-h-screen">
-              <div className="mb-12">
-                <h1 className="text-4xl font-bold text-white mb-3">Student Dashboard</h1>
-                <p className="text-gray-400 text-lg">Report issues and track your submissions</p>
-                <div className="h-1 w-24 bg-gradient-to-r from-green-500 to-emerald-500 mt-4 rounded-full"></div>
-              </div>
-
-              {/* Classroom Info Card */}
-              <div className="bg-gradient-to-r from-green-600/20 to-emerald-600/20 rounded-xl p-6 border border-green-500/30 mb-8">
-                <div className="flex items-center gap-4">
-                  <div className="w-14 h-14 bg-green-600/30 rounded-xl flex items-center justify-center text-3xl">🏫</div>
-                  <div>
-                    <p className="text-green-300/70 text-xs font-semibold uppercase tracking-wide mb-1">Your Classroom</p>
-                    <p className="text-white text-xl font-bold">
-                      {profile?.classroomId ? formatClassroom(profile.classroomId) : 'No classroom assigned'}
-                    </p>
-                    {profile?.rollNumber && (
-                      <p className="text-green-300/70 text-sm mt-1">Roll Number: {profile.rollNumber}</p>
-                    )}
-                  </div>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 mb-8">
-                <button
-                  onClick={() => setActiveTab('report')}
-                  className="bg-gradient-to-br from-green-600 to-green-700 rounded-xl p-8 shadow-2xl transition-all duration-300 transform hover:scale-105 border border-green-400/30 group text-left w-full"
-                >
-                  <div className="text-5xl mb-4 group-hover:scale-110 transition-transform duration-300">🚨</div>
-                  <h3 className="text-xl font-bold text-white mb-2">Report Issue</h3>
-                  <p className="text-green-100 text-sm mb-4">Report a classroom problem</p>
-                  <span className="text-green-100 font-medium text-sm">Report →</span>
-                </button>
-                <button
-                  onClick={() => setActiveTab('issues')}
-                  className="bg-gradient-to-br from-emerald-600 to-emerald-700 rounded-xl p-8 shadow-2xl transition-all duration-300 transform hover:scale-105 border border-emerald-400/30 group text-left w-full"
-                >
-                  <div className="text-5xl mb-4 group-hover:scale-110 transition-transform duration-300">📋</div>
-                  <h3 className="text-xl font-bold text-white mb-2">My Issues</h3>
-                  <p className="text-emerald-100 text-sm mb-4">Track your reported issues</p>
-                  <span className="text-emerald-100 font-medium text-sm">View →</span>
-                </button>
-              </div>
-
-              <div id="student-stats" className="bg-gradient-to-r from-slate-800 to-slate-700 rounded-xl p-8 border border-slate-600/50 shadow-2xl mb-8">
-                <h2 className="text-2xl font-bold text-white mb-6">Quick Stats</h2>
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-6">
-                  <div className="bg-green-500/10 rounded-lg p-6 border border-green-400/30">
-                    <p className="text-green-300 text-sm font-semibold uppercase tracking-wide mb-2">Total Issues</p>
-                    <p className="text-4xl font-bold text-green-400">{stats?.totalIssues ?? '—'}</p>
-                  </div>
-                  <div className="bg-blue-500/10 rounded-lg p-6 border border-blue-400/30">
-                    <p className="text-blue-300 text-sm font-semibold uppercase tracking-wide mb-2">Open</p>
-                    <p className="text-4xl font-bold text-blue-400">{stats?.openIssues ?? '—'}</p>
-                  </div>
-                  <div className="bg-yellow-500/10 rounded-lg p-6 border border-yellow-400/30">
-                    <p className="text-yellow-300 text-sm font-semibold uppercase tracking-wide mb-2">In Progress</p>
-                    <p className="text-4xl font-bold text-yellow-400">{stats?.inProgressIssues ?? '—'}</p>
-                  </div>
-                  <div className="bg-emerald-500/10 rounded-lg p-6 border border-emerald-400/30">
-                    <p className="text-emerald-300 text-sm font-semibold uppercase tracking-wide mb-2">Resolved</p>
-                    <p className="text-4xl font-bold text-emerald-400">{stats?.resolvedIssues ?? '—'}</p>
-                  </div>
-                </div>
-              </div>
-
-              {/* Timetable Preview */}
-              {profile?.classroomId && (
-                <div className="bg-slate-800 rounded-xl p-8 border border-slate-600/50">
-                  <div className="flex justify-between items-center mb-4">
-                    <h2 className="text-2xl font-bold text-white">📅 Your Timetable</h2>
-                    <button
-                      onClick={() => setActiveTab('timetable')}
-                      className="text-green-400 hover:text-green-300 text-sm font-medium transition-colors"
-                    >
-                      View Full →
-                    </button>
-                  </div>
-                  {timetableLoading ? (
-                    <p className="text-green-300/70">Loading timetable...</p>
-                  ) : timetable ? (
-                    <img
-                      src={`${API_BASE}${timetable.imageURL}`}
-                      alt="Timetable"
-                      className="w-full max-h-64 object-contain rounded-lg bg-slate-700"
-                      onError={(e) => { e.target.style.display = 'none'; }}
-                    />
-                  ) : (
-                    <p className="text-gray-500">No timetable uploaded for your classroom yet</p>
-                  )}
-                </div>
-              )}
-            </div>
-          )}
-
-          {activeTab === 'projects' && <ViewMyProjects onBack={() => setActiveTab('overview')} />}
-
-          {activeTab === 'report' && <ReportIssue onBack={() => setActiveTab('overview')} />}
-          {activeTab === 'issues' && <ViewMyIssues onBack={() => setActiveTab('overview')} />}
-          {activeTab === 'timetable' && (
-            <div className="p-8 bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 min-h-screen">
               <button
-                onClick={() => setActiveTab('overview')}
-                className="inline-flex items-center gap-2 text-green-400 hover:text-green-300 mb-6 transition-colors"
+                onClick={() => setActiveTab('issues')}
+                className="bg-white rounded-lg border border-gray-200 p-5 hover:shadow-md transition-shadow text-left"
               >
-                <span className="text-2xl">←</span>
-                <span className="font-semibold">Back to Dashboard</span>
+                <div className="text-3xl mb-2">📋</div>
+                <h3 className="font-semibold text-gray-900 text-sm mb-1">My Issues</h3>
+                <p className="text-xs text-gray-500">Track reported issues</p>
               </button>
-              <div className="mb-8">
-                <h1 className="text-4xl font-bold text-white mb-2">📅 My Timetable</h1>
-                <p className="text-green-300/70">
-                  {profile?.classroomId ? formatClassroom(profile.classroomId) : 'No classroom assigned'}
-                </p>
-              </div>
-              {!profile?.classroomId ? (
-                <div className="text-center py-12 bg-slate-800 rounded-2xl border border-green-500/20">
-                  <p className="text-green-300/70 text-lg">You are not assigned to a classroom</p>
-                </div>
-              ) : timetableLoading ? (
-                <div className="text-center py-12">
-                  <div className="w-12 h-12 border-4 border-green-500/30 border-t-green-500 rounded-full animate-spin mx-auto"></div>
-                  <p className="text-green-300 mt-4">Loading timetable...</p>
-                </div>
-              ) : timetable ? (
-                <div className="bg-slate-800 rounded-2xl p-6 border border-green-500/20">
+            </div>
+          </div>
+
+          {/* Statistics Section */}
+          <div className="mb-8">
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">Statistics</h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+              <StatCard icon="📋" label="Total Issues" value={stats?.totalIssues ?? 0} />
+              <StatCard icon="⚠️" label="Open" value={stats?.openIssues ?? 0} />
+              <StatCard icon="⏳" label="In Progress" value={stats?.inProgressIssues ?? 0} />
+              <StatCard icon="✓" label="Resolved" value={stats?.resolvedIssues ?? 0} />
+            </div>
+          </div>
+
+          {/* Timetable Preview */}
+          {profile?.classroomId && timetable && (
+            <div className="mb-8">
+              <Card title="Class Timetable">
+              <div className="flex items-start justify-between gap-4">
+                <div className="flex-1">
                   <img
                     src={`${API_BASE}${timetable.imageURL}`}
                     alt="Timetable"
-                    className="w-full rounded-lg"
-                    onError={(e) => { e.target.parentElement.innerHTML = '<p class="text-red-300 text-center py-8">Failed to load timetable image</p>'; }}
+                    className="w-full max-h-60 object-contain rounded-lg bg-gray-50 border border-gray-200"
+                    onError={(e) => { e.target.style.display = 'none'; }}
                   />
-                  <p className="text-green-300/70 text-xs mt-4 text-center">
-                    Uploaded {new Date(timetable.uploadedAt || timetable.createdAt).toLocaleDateString()}
-                  </p>
+                  <button
+                    onClick={() => setActiveTab('timetable')}
+                    className="mt-3 text-blue-600 text-sm font-medium hover:text-blue-700"
+                  >
+                    View Full Timetable →
+                  </button>
                 </div>
-              ) : (
-                <div className="text-center py-12 bg-slate-800 rounded-2xl border border-green-500/20">
-                  <div className="text-5xl mb-4">📅</div>
-                  <p className="text-green-300/70 text-lg">No timetable uploaded for your classroom yet</p>
-                </div>
-              )}
+              </div>
+            </Card>
             </div>
           )}
         </div>
-      </div>
-    </div>
+      );
+    }
+
+    if (activeTab === 'projects') return <ViewMyProjects onBack={() => setActiveTab('overview')} />;
+    if (activeTab === 'report') return <ReportIssue onBack={() => setActiveTab('overview')} />;
+    if (activeTab === 'issues') return <ViewMyIssues onBack={() => setActiveTab('overview')} />;
+    
+    if (activeTab === 'timetable') {
+      const classroomName = profile?.classroomId
+        ? `${profile.classroomId.department} - Year ${profile.classroomId.year}, Section ${profile.classroomId.section}`
+        : '';
+
+      return (
+        <div>
+          <div className="mb-8">
+            <h1 className="text-3xl font-bold text-gray-900 mb-2">Class Timetable</h1>
+            {classroomName && <p className="text-gray-500 text-sm">{classroomName}</p>}
+          </div>
+
+          <Card>
+            {!profile?.classroomId ? (
+              <p className="text-gray-600 text-center py-8">You are not assigned to a classroom</p>
+            ) : timetableLoading ? (
+              <p className="text-gray-600 text-center py-8">Loading timetable...</p>
+            ) : timetable ? (
+              <div>
+                <img
+                  src={`${API_BASE}${timetable.imageURL}`}
+                  alt="Timetable"
+                  className="w-full rounded-lg border border-gray-200"
+                  onError={(e) => { e.target.style.display = 'none'; e.target.nextElementSibling?.style.removeProperty('display'); }}
+                />
+                <p className="text-gray-500 text-xs mt-4 text-center" style={{ display: 'none' }}>
+                  Failed to load image
+                </p>
+                <p className="text-gray-500 text-xs mt-4 text-center">
+                  Uploaded {new Date(timetable.uploadedAt || timetable.createdAt).toLocaleDateString()}
+                </p>
+              </div>
+            ) : (
+              <p className="text-gray-600 text-center py-8">No timetable available for your classroom</p>
+            )}
+          </Card>
+        </div>
+      );
+    }
+  };
+
+  return (
+    <DashboardLayout
+      title={user?.name || 'Student'}
+      icon="🎓"
+      menuItems={menuItems}
+      activeTab={activeTab}
+      onTabChange={setActiveTab}
+      onLogout={handleLogout}
+    >
+      {renderContent()}
+    </DashboardLayout>
   );
 };
 

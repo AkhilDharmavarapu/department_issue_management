@@ -7,7 +7,7 @@ const {
   getAllTimetables,
   deleteTimetable,
 } = require('../controllers/timetableController');
-const { authMiddleware, adminOnly } = require('../middleware/auth');
+const { authMiddleware, adminOnly, authorize } = require('../middleware/auth');
 
 /**
  * POST /api/timetable/upload
@@ -20,9 +20,9 @@ router.post('/upload', authMiddleware, adminOnly, uploadMiddleware, uploadTimeta
 /**
  * GET /api/timetable
  * Get all timetables
- * Admin only
+ * Admin and HOD (read-only)
  */
-router.get('/', authMiddleware, adminOnly, getAllTimetables);
+router.get('/', authMiddleware, authorize('admin', 'hod'), getAllTimetables);
 
 /**
  * GET /api/timetable/:classroomId

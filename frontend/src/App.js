@@ -6,6 +6,7 @@ import AdminDashboard from './pages/AdminDashboard';
 import FacultyDashboard from './pages/FacultyDashboard';
 import StudentDashboard from './pages/StudentDashboard';
 
+
 // Sub-pages (routed from dashboards but need dedicated URLs)
 import Classrooms from './pages/admin/Classrooms';
 import ManageIssues from './pages/admin/ManageIssues';
@@ -56,6 +57,7 @@ const RoleRedirect = () => {
 
   switch (user?.role) {
     case 'admin':
+    case 'hod':
       return <Navigate to="/admin/dashboard" replace />;
     case 'faculty':
       return <Navigate to="/faculty/dashboard" replace />;
@@ -75,10 +77,10 @@ function AppRoutes() {
       {/* Role-based root redirect */}
       <Route path="/" element={<RoleRedirect />} />
 
-      {/* Admin */}
-      <Route path="/admin/dashboard" element={<ProtectedRoute element={<AdminDashboard />} allowedRoles={['admin']} />} />
+      {/* Admin (and HOD in read-only mode) */}
+      <Route path="/admin/dashboard" element={<ProtectedRoute element={<AdminDashboard />} allowedRoles={['admin', 'hod']} />} />
       <Route path="/admin/classrooms" element={<ProtectedRoute element={<Classrooms />} allowedRoles={['admin']} />} />
-      <Route path="/admin/issues" element={<ProtectedRoute element={<ManageIssues />} allowedRoles={['admin']} />} />
+      <Route path="/admin/issues" element={<ProtectedRoute element={<ManageIssues />} allowedRoles={['admin', 'hod']} />} />
       <Route path="/admin/users" element={<ProtectedRoute element={<UserManagement />} allowedRoles={['admin']} />} />
 
       {/* Faculty */}

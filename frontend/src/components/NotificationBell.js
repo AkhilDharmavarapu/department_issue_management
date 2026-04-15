@@ -111,14 +111,14 @@ const NotificationBell = () => {
 
       {/* Dropdown Panel */}
       {isOpen && (
-        <div className="absolute right-0 mt-2 w-96 bg-slate-800 border border-green-500/30 rounded-xl shadow-2xl z-50">
+        <div className="absolute right-0 mt-2 w-96 bg-white border border-gray-200 rounded-lg shadow-lg z-50">
           {/* Header */}
-          <div className="flex items-center justify-between p-4 border-b border-green-500/20">
-            <h3 className="text-white font-semibold">Notifications</h3>
+          <div className="flex items-center justify-between p-4 border-b border-gray-200">
+            <h3 className="text-gray-900 font-semibold">Notifications</h3>
             {unreadCount > 0 && (
               <button
                 onClick={handleMarkAllAsRead}
-                className="text-xs text-green-400 hover:text-green-300 transition-colors"
+                className="text-xs text-blue-600 hover:text-blue-700 transition-colors"
               >
                 Mark all as read
               </button>
@@ -129,19 +129,19 @@ const NotificationBell = () => {
           <div className="max-h-96 overflow-y-auto">
             {loading && notifications.length === 0 ? (
               <div className="p-8 text-center">
-                <div className="w-8 h-8 border-4 border-green-500/30 border-t-green-500 rounded-full animate-spin mx-auto"></div>
-                <p className="text-gray-400 mt-2 text-sm">Loading notifications...</p>
+                <div className="w-8 h-8 border-4 border-blue-300 border-t-blue-600 rounded-full animate-spin mx-auto"></div>
+                <p className="text-gray-500 mt-2 text-sm">Loading notifications...</p>
               </div>
             ) : notifications.length === 0 ? (
-              <div className="p-8 text-center text-gray-400">
+              <div className="p-8 text-center text-gray-500">
                 <p className="text-sm">No notifications yet</p>
               </div>
             ) : (
               notifications.map((notification) => (
                 <div
                   key={notification._id}
-                  className={`p-4 border-b border-slate-700/50 transition-colors hover:bg-slate-700/30 cursor-pointer ${
-                    !notification.isRead ? 'bg-slate-700/50' : 'bg-slate-800'
+                  className={`p-4 border-b border-gray-200 transition-colors hover:bg-gray-50 cursor-pointer ${
+                    !notification.isRead ? 'bg-blue-50' : 'bg-white'
                   }`}
                   onClick={() => handleMarkAsRead(notification._id)}
                 >
@@ -150,7 +150,7 @@ const NotificationBell = () => {
                       {getNotificationIcon(notification.type)}
                     </span>
                     <div className="flex-1 min-w-0">
-                      <p className="text-gray-200 text-sm break-words">
+                      <p className="text-gray-900 text-sm break-words">
                         {notification.message}
                       </p>
                       <p className="text-gray-500 text-xs mt-1">
@@ -158,14 +158,14 @@ const NotificationBell = () => {
                       </p>
                     </div>
                     {!notification.isRead && (
-                      <span className="flex-shrink-0 w-2 h-2 bg-green-400 rounded-full mt-1"></span>
+                      <span className="flex-shrink-0 w-2 h-2 bg-blue-600 rounded-full mt-1"></span>
                     )}
                     <button
                       onClick={(e) => {
                         e.stopPropagation();
                         handleDeleteNotification(notification._id);
                       }}
-                      className="text-gray-500 hover:text-red-400 transition-colors flex-shrink-0"
+                      className="text-gray-500 hover:text-red-600 transition-colors flex-shrink-0"
                       title="Delete notification"
                     >
                       ×
@@ -178,10 +178,10 @@ const NotificationBell = () => {
 
           {/* Footer */}
           {notifications.length > 0 && (
-            <div className="p-3 border-t border-slate-700/50 text-center">
+            <div className="p-3 border-t border-gray-200 text-center">
               <button
                 onClick={() => setIsOpen(false)}
-                className="text-sm text-gray-400 hover:text-gray-300 transition-colors"
+                className="text-sm text-gray-600 hover:text-gray-900 transition-colors"
               >
                 Close
               </button>

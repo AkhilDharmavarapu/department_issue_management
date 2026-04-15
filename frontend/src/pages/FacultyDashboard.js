@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import NotificationBell from '../components/NotificationBell';
+import DashboardLayout from '../components/DashboardLayout';
+import { StatCard, Card } from '../components/CardComponents';
 import CreateProject from './faculty/CreateProject';
 import ViewMyProjects from './faculty/ViewMyProjects';
 import ManageTeamMembers from './faculty/ManageTeamMembers';
@@ -46,140 +47,99 @@ const FacultyDashboard = () => {
     { id: 'issues', label: 'Student Issues', icon: '⚠️' },
   ];
 
-  return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-green-900 to-slate-900">
-      <div className="flex h-screen">
-        {/* Sidebar */}
-        <div className="w-64 bg-gradient-to-b from-slate-900 to-slate-800 text-white p-6 shadow-2xl border-r border-green-500/20 overflow-y-auto flex-shrink-0">
-          <div className="mb-10">
-            <div className="flex items-center gap-3 mb-2">
-              <div className="w-10 h-10 bg-gradient-to-r from-green-500 to-emerald-500 rounded-lg flex items-center justify-center text-xl">👨‍🏫</div>
-              <h1 className="text-2xl font-bold bg-gradient-to-r from-green-400 to-emerald-400 bg-clip-text text-transparent">{user?.name || "Faculty"}</h1>
+  const renderContent = () => {
+    if (activeTab === 'overview') {
+      return (
+        <div>
+          {/* Page Title and Description */}
+          <div className="mb-8">
+            <h1 className="text-4xl font-bold text-gray-900 mb-3">Dashboard</h1>
+            <p className="text-gray-500 text-base">Manage projects, teams, and student issues in your classrooms</p>
+          </div>
+
+          {/* Quick Actions */}
+          <div className="mb-8">
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">Quick Actions</h3>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+              {[
+                { id: 'create', icon: '➕', label: 'Create Project', desc: 'Assign new projects' },
+                { id: 'projects', icon: '📋', label: 'My Projects', desc: 'View your projects' },
+                { id: 'issues', icon: '⚠️', label: 'Student Issues', desc: 'View issues' },
+              ].map(item => (
+                <button
+                  key={item.id}
+                  onClick={() => setActiveTab(item.id)}
+                  className="bg-white rounded-lg border border-gray-200 p-4 hover:border-blue-300 hover:shadow-md transition-all text-left"
+                >
+                  <div className="text-2xl mb-3">{item.icon}</div>
+                  <h3 className="font-semibold text-gray-900 text-sm">{item.label}</h3>
+                  <p className="text-xs text-gray-500 mt-1">{item.desc}</p>
+                </button>
+              ))}
             </div>
-            <p className="text-green-300/60 text-xs">Faculty Panel</p>
-          </div>
-          <nav className="space-y-2">
-            {menuItems.map(item => (
-              <button
-                key={item.id}
-                onClick={() => setActiveTab(item.id)}
-                className={`w-full text-left px-4 py-3 rounded-xl transition-all duration-300 ${
-                  activeTab === item.id
-                    ? 'bg-gradient-to-r from-green-600 to-emerald-600 text-white shadow-lg shadow-green-500/30'
-                    : 'bg-slate-700/50 text-gray-300 hover:bg-slate-700 border border-slate-600/30'
-                }`}
-              >
-                <span className="mr-3 text-lg">{item.icon}</span>
-                <span className="font-medium">{item.label}</span>
-              </button>
-            ))}
-          </nav>
-          
-          <div className="mt-8 pt-6 border-t border-slate-700">
-            <button
-              onClick={handleLogout}
-              className="w-full bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 text-white font-bold py-3 px-4 rounded-xl transition-all duration-300 shadow-lg"
-            >
-              Logout
-            </button>
-          </div>
-        </div>
-
-        {/* Main Content */}
-        <div className="flex-1 overflow-y-auto">
-          {/* Top Header */}
-          <div className="bg-slate-800 border-b border-green-500/20 px-8 py-4 flex justify-end items-center">
-            <NotificationBell />
           </div>
 
-          {activeTab === 'overview' && (
-            <div className="p-8 bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 min-h-screen">
-              <div className="mb-12">
-                <h1 className="text-4xl font-bold text-white mb-3">Faculty Dashboard</h1>
-                <p className="text-gray-400 text-lg">Manage projects, teams, and student issues</p>
-                <div className="h-1 w-24 bg-gradient-to-r from-green-500 to-emerald-500 mt-4 rounded-full"></div>
-              </div>
+          {/* Statistics Section */}
+          <div className="mb-8">
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">Statistics</h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+              <StatCard icon="📋" label="My Projects" value={stats?.totalProjects ?? 0} />
+              <StatCard icon="⚠️" label="Open Issues" value={stats?.openIssues ?? 0} />
+              <StatCard icon="✓" label="Resolved" value={stats?.resolvedIssues ?? 0} />
+              <StatCard icon="🏫" label="Classrooms" value={stats?.totalClassrooms ?? 0} />
+            </div>
+          </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
-                {[
-                  { id: 'create', icon: '➕', label: 'Create Project', desc: 'Assign new projects to classes', color: 'from-green-600 to-green-700' },
-                  { id: 'projects', icon: '📋', label: 'My Projects', desc: 'View and manage your projects', color: 'from-emerald-600 to-emerald-700' },
-                  { id: 'issues', icon: '⚠️', label: 'Student Issues', desc: 'View classroom issues', color: 'from-green-700 to-emerald-700' },
-                ].map(card => (
-                  <button
-                    key={card.id}
-                    onClick={() => setActiveTab(card.id)}
-                    className={`bg-gradient-to-br ${card.color} rounded-xl p-8 shadow-2xl transition-all duration-300 transform hover:scale-105 border border-green-400/30 group text-left w-full`}
-                  >
-                    <div className="text-5xl mb-4 group-hover:scale-110 transition-transform duration-300">{card.icon}</div>
-                    <h3 className="text-xl font-bold text-white mb-2">{card.label}</h3>
-                    <p className="text-green-100 text-sm mb-4">{card.desc}</p>
-                    <span className="text-green-100 font-medium text-sm">Go →</span>
-                  </button>
-                ))}
-              </div>
-
-              <div className="bg-gradient-to-r from-slate-800 to-slate-700 rounded-xl p-8 border border-slate-600/50 shadow-2xl mb-8">
-                <h2 className="text-2xl font-bold text-white mb-6">Quick Stats</h2>
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-6">
-                  <div className="bg-green-500/10 rounded-lg p-6 border border-green-400/30">
-                    <p className="text-green-300 text-sm font-semibold uppercase tracking-wide mb-2">Projects</p>
-                    <p className="text-4xl font-bold text-green-400">{stats?.totalProjects ?? '—'}</p>
-                  </div>
-                  <div className="bg-blue-500/10 rounded-lg p-6 border border-blue-400/30">
-                    <p className="text-blue-300 text-sm font-semibold uppercase tracking-wide mb-2">Open Issues</p>
-                    <p className="text-4xl font-bold text-blue-400">{stats?.openIssues ?? '—'}</p>
-                  </div>
-                  <div className="bg-emerald-500/10 rounded-lg p-6 border border-emerald-400/30">
-                    <p className="text-emerald-300 text-sm font-semibold uppercase tracking-wide mb-2">Resolved</p>
-                    <p className="text-4xl font-bold text-emerald-400">{stats?.resolvedIssues ?? '—'}</p>
-                  </div>
-                  <div className="bg-purple-500/10 rounded-lg p-6 border border-purple-400/30">
-                    <p className="text-purple-300 text-sm font-semibold uppercase tracking-wide mb-2">Classrooms</p>
-                    <p className="text-4xl font-bold text-purple-400">{stats?.totalClassrooms ?? '—'}</p>
-                  </div>
-                </div>
-              </div>
-
-              <div className="bg-gradient-to-r from-slate-800 to-slate-700 rounded-xl p-8 border border-slate-600/50 shadow-2xl">
-                <h2 className="text-2xl font-bold text-white mb-6">My Classrooms</h2>
-                {classrooms && classrooms.length > 0 ? (
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-                    {classrooms.map(classroom => (
-                      <div key={classroom._id} className="bg-slate-900/50 border border-green-400/30 rounded-lg p-6 hover:border-green-400/60 transition-all duration-300">
-                        <div className="flex items-start justify-between mb-4">
-                          <div className="flex-1">
-                            <h3 className="text-lg font-bold text-white mb-2">{classroom.department}</h3>
-                            <div className="space-y-1">
-                              <p className="text-green-300 text-sm">Year: <span className="font-semibold">{classroom.year}</span></p>
-                              <p className="text-green-300 text-sm">Section: <span className="font-semibold">{classroom.section}</span></p>
-                            </div>
-                          </div>
-                          <div className="text-3xl">🏫</div>
-                        </div>
-                        <div className="pt-4 border-t border-slate-600/50">
-                          <p className="text-gray-400 text-xs">Class ID: {classroom._id.substring(0, 8)}...</p>
-                        </div>
+          {/* My Classrooms */}
+          {classrooms && classrooms.length > 0 && (
+            <div className="mb-8">
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">Assigned Classrooms</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {classrooms.map(classroom => (
+                  <div key={classroom._id} className="bg-white rounded-lg border border-gray-200 p-6 hover:shadow-sm transition-shadow">
+                    <h4 className="font-semibold text-gray-900 text-base mb-3">{classroom.department}</h4>
+                    <div className="space-y-2 text-sm text-gray-500">
+                      <div className="flex justify-between">
+                        <span>Year:</span>
+                        <span className="font-medium text-gray-900">{classroom.year}</span>
                       </div>
-                    ))}
+                      <div className="flex justify-between">
+                        <span>Section:</span>
+                        <span className="font-medium text-gray-900">{classroom.section}</span>
+                      </div>
+                      {classroom.facultyId?.name && (
+                        <div className="flex justify-between pt-2 border-t border-gray-200">
+                          <span>Faculty:</span>
+                          <span className="font-medium text-gray-900">{classroom.facultyId.name}</span>
+                        </div>
+                      )}
+                    </div>
                   </div>
-                ) : (
-                  <div className="bg-slate-900/50 border border-yellow-400/30 rounded-lg p-8 text-center">
-                    <p className="text-yellow-300 text-lg font-semibold">No classrooms assigned</p>
-                    <p className="text-gray-400 text-sm mt-2">Contact administration to assign classrooms</p>
-                  </div>
-                )}
+                ))}
               </div>
             </div>
           )}
-
-          {activeTab === 'create' && <CreateProject onBack={() => setActiveTab('overview')} />}
-          {activeTab === 'projects' && <ViewMyProjects onBack={() => setActiveTab('overview')} />}
-          {activeTab === 'issues' && <ViewClassroomIssues onBack={() => setActiveTab('overview')} />}
-          {activeTab === 'team' && <ManageTeamMembers onBack={() => setActiveTab('overview')} />}
         </div>
-      </div>
-    </div>
+      );
+    }
+
+    if (activeTab === 'create') return <CreateProject onBack={() => setActiveTab('overview')} />;
+    if (activeTab === 'projects') return <ViewMyProjects onBack={() => setActiveTab('overview')} />;
+    if (activeTab === 'issues') return <ViewClassroomIssues onBack={() => setActiveTab('overview')} />;
+    if (activeTab === 'team') return <ManageTeamMembers onBack={() => setActiveTab('overview')} />;
+  };
+
+  return (
+    <DashboardLayout
+      title={user?.name || 'Faculty'}
+      icon="👨‍🏫"
+      menuItems={menuItems}
+      activeTab={activeTab}
+      onTabChange={setActiveTab}
+      onLogout={handleLogout}
+    >
+      {renderContent()}
+    </DashboardLayout>
   );
 };
 

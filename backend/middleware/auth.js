@@ -155,6 +155,7 @@ const authorize = (...roles) => {
 const adminOnly = authorize('admin');
 const facultyOnly = authorize('faculty', 'admin');
 const studentOnly = authorize('student', 'admin');
+const hodOrAdmin = authorize('hod', 'admin');
 
 module.exports = {
   authMiddleware,
@@ -162,4 +163,5 @@ module.exports = {
   adminOnly,
   facultyOnly,
   studentOnly,
+  hodOrAdmin,
 };

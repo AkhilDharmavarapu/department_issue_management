@@ -7,8 +7,9 @@ const {
   getClassroomById,
   updateClassroom,
   deleteClassroom,
+  getAvailableRooms,
 } = require('../controllers/classroomController');
-const { authMiddleware, adminOnly } = require('../middleware/auth');
+const { authMiddleware, adminOnly, authorize } = require('../middleware/auth');
 
 /**
  * POST /api/classrooms
@@ -20,9 +21,9 @@ router.post('/', authMiddleware, adminOnly, createClassroom);
 /**
  * GET /api/classrooms
  * Get all classrooms
- * All authenticated users (faculty needs this for project creation)
+ * Admin and HOD (read-only)
  */
-router.get('/', authMiddleware, getAllClassrooms);
+router.get('/', authMiddleware, authorize('admin', 'hod'), getAllClassrooms);
 
 /**
  * GET /api/classrooms/my
@@ -30,6 +31,13 @@ router.get('/', authMiddleware, getAllClassrooms);
  * Faculty and Admin
  */
 router.get('/my', authMiddleware, getMyClassrooms);
+
+/**
+ * GET /api/classrooms/available-rooms?block=Main Block&excludeClassroomId=...
+ * Get available rooms for a specific block
+ * Admin only
+ */
+router.get('/available-rooms/:block', authMiddleware, adminOnly, getAvailableRooms);
 
 /**
  * GET /api/classrooms/:id

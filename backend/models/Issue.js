@@ -30,8 +30,8 @@ const issueSchema = new mongoose.Schema(
     },
     priority: {
       type: String,
-      enum: ['Low', 'Medium', 'High', 'Critical'],
-      default: 'Medium',
+      enum: ['Minor', 'Normal', 'Important', 'Urgent'],
+      default: 'Normal',
     },
     category: {
       type: String,
@@ -42,6 +42,14 @@ const issueSchema = new mongoose.Schema(
       type: mongoose.Schema.Types.ObjectId,
       ref: 'User',
       default: null,
+    },
+    reportProof: {
+      type: String,
+      default: null, // File path for student-uploaded proof
+    },
+    resolutionProof: {
+      type: String,
+      default: null, // File path for admin/faculty/HOD-uploaded proof
     },
     resolvedAt: {
       type: Date,

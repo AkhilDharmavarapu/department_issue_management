@@ -31,8 +31,12 @@ const errorHandler = (err, req, res, next) => {
   // Mongoose Duplicate Key Error
   if (err.code === 11000) {
     statusCode = 409;
-    const field = Object.keys(err.keyPattern)[0];
-    message = `${field} already exists`;
+    const duplicateFields = Object.keys(err.keyPattern);
+    if (duplicateFields.length > 1) {
+      message = `A record with this combination of ${duplicateFields.join(', ')} already exists`;
+    } else {
+      message = `${duplicateFields[0]} already exists`;
+    }
   }
 
   // JWT Errors

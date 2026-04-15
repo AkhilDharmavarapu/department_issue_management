@@ -285,7 +285,7 @@ exports.updateProjectStatus = async (req, res, next) => {
 
     // STUDENTS: Can only update if they are team members
     if (role === 'student') {
-      const isTeamMember = project.teamMembers.some((m) => m.rollNumber === rollNumber);
+      const isTeamMember = project.teamMembers.some((m) => m.userId.toString() === userId.toString());
       
       if (!isTeamMember) {
         return res.status(403).json({
@@ -390,23 +390,39 @@ exports.addTeamMember = async (req, res, next) => {
       });
     }
 
-    // Check if member already exists
-    if (project.teamMembers.some((m) => m.rollNumber === rollNumber)) {
+    // Find user by roll number
+    const user = await User.findOne({ rollNumber });
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'Student not found with this roll number',
+      });
+    }
+
+    // Validate user is a student
+    if (user.role !== 'student') {
+      return res.status(400).json({
+        success: false,
+        message: 'Only students can be added to team',
+      });
+    }
+
+    // Validate student is in same classroom
+    if (!user.classroomId || user.classroomId.toString() !== project.classroomId.toString()) {
+      return res.status(400).json({
+        success: false,
+        message: 'Student must be in the same classroom as project',
+      });
+    }
+
+    // Check if member already exists (by userId, not rollNumber)
+    if (project.teamMembers.some((m) => m.userId.toString() === user._id.toString())) {
       return res.status(400).json({
         success: false,
         message: 'Team member already added',
       });
     }
-
-    // Find user by roll number
-    const user = await User.findOne({ rollNumber });
-
-    if (!user) {
-  return res.status(404).json({
-    success: false,
-    message: 'Student not found with this roll number',
-  });
-}
 
     project.teamMembers.push({
       rollNumber,

@@ -62,17 +62,17 @@ const CreateProject = ({ onBack }) => {
   };
 
   return (
-    <div className="p-8 bg-gradient-to-br from-slate-900 to-slate-800 min-h-screen">
+    <div className="p-8 bg-white min-h-screen">
       <div className="max-w-3xl mx-auto">
         <button
           onClick={onBack}
-          className="mb-4 px-4 py-2 bg-gray-600 text-white rounded hover:bg-gray-700 flex items-center gap-2"
+          className="mb-4 px-4 py-2 bg-gray-200 hover:bg-gray-300 text-gray-900 rounded-lg font-medium flex items-center gap-2 shadow-sm hover:shadow-md transition-all"
         >
           ← Back to Dashboard
         </button>
         <div className="mb-8">
-          <h1 className="text-4xl font-bold text-white mb-2">➕ Create New Project</h1>
-          <p className="text-green-300/70">Design a project for your classroom</p>
+          <h1 className="text-4xl font-bold text-gray-900 mb-2">➕ Create New Project</h1>
+          <p className="text-gray-500">Design a project for your classroom</p>
         </div>
 
         {error && (
@@ -87,11 +87,11 @@ const CreateProject = ({ onBack }) => {
           </div>
         )}
 
-        <div className="bg-slate-800 rounded-2xl shadow-2xl p-8 border border-green-500/20">
+        <div className="bg-white rounded-lg shadow-sm p-8 border border-gray-200">
           <form onSubmit={handleSubmit} className="space-y-8">
             <div>
-              <label className="block text-sm font-semibold text-green-300 mb-3">
-                Project Title <span className="text-green-400">*</span>
+              <label className="block text-sm font-semibold text-gray-700 mb-3">
+                Project Title <span className="text-blue-600">*</span>
               </label>
               <input
                 type="text"
@@ -101,13 +101,13 @@ const CreateProject = ({ onBack }) => {
                 placeholder="e.g., Hospital Management System"
                 minLength="5"
                 required
-                className="w-full px-5 py-3 bg-slate-700 border border-green-500/30 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-green-500 transition"
+                className="w-full px-5 py-3 bg-gray-50 border border-gray-200 rounded-lg text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
               />
             </div>
 
             <div>
-              <label className="block text-sm font-semibold text-green-300 mb-3">
-                Subject <span className="text-green-400">*</span>
+              <label className="block text-sm font-semibold text-gray-700 mb-3">
+                Subject <span className="text-blue-600">*</span>
               </label>
               <input
                 type="text"
@@ -117,21 +117,21 @@ const CreateProject = ({ onBack }) => {
                 placeholder="e.g., Database Management"
                 minLength="3"
                 required
-                className="w-full px-5 py-3 bg-slate-700 border border-green-500/30 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-green-500 transition"
+                className="w-full px-5 py-3 bg-gray-50 border border-gray-200 rounded-lg text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
               />
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
               <div>
-                <label className="block text-sm font-semibold text-green-300 mb-3">
-                  Assign to Classroom <span className="text-green-400">*</span>
+                <label className="block text-sm font-semibold text-gray-700 mb-3">
+                  Assign to Classroom <span className="text-blue-600">*</span>
                 </label>
                 <select
                   name="classroomId"
                   value={formData.classroomId}
                   onChange={handleChange}
                   required
-                  className="w-full px-5 py-3 bg-slate-700 border border-green-500/30 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-green-500 transition"
+                  className="w-full px-5 py-3 bg-gray-50 border border-gray-200 rounded-lg text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
                 >
                   <option value="">Select Classroom</option>
                   {classrooms.map(classroom => (
@@ -143,8 +143,8 @@ const CreateProject = ({ onBack }) => {
               </div>
 
               <div>
-                <label className="block text-sm font-semibold text-green-300 mb-3">
-                  Max Team Size <span className="text-green-400">*</span>
+                <label className="block text-sm font-semibold text-gray-700 mb-3">
+                  Max Team Size <span className="text-blue-600">*</span>
                 </label>
                 <input
                   type="number"
@@ -154,14 +154,14 @@ const CreateProject = ({ onBack }) => {
                   min="1"
                   max="10"
                   required
-                  className="w-full px-5 py-3 bg-slate-700 border border-green-500/30 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-green-500 transition"
+                  className="w-full px-5 py-3 bg-gray-50 border border-gray-200 rounded-lg text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
                 />
               </div>
             </div>
 
             <div>
-              <label className="block text-sm font-semibold text-green-300 mb-3">
-                Deadline <span className="text-green-400">*</span>
+              <label className="block text-sm font-semibold text-gray-700 mb-3">
+                Deadline <span className="text-blue-600">*</span>
               </label>
               <input
                 type="date"
@@ -169,14 +169,14 @@ const CreateProject = ({ onBack }) => {
                 value={formData.deadline}
                 onChange={handleChange}
                 required
-                className="w-full px-5 py-3 bg-slate-700 border border-green-500/30 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-green-500 transition"
+                className="w-full px-5 py-3 bg-gray-50 border border-gray-200 rounded-lg text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
               />
             </div>
 
             <button
               type="submit"
               disabled={loading}
-              className="w-full bg-gradient-to-r from-green-600 to-green-600 hover:from-green-700 hover:to-green-700 disabled:from-green-400 disabled:to-green-400 text-white font-semibold py-3 px-6 rounded-lg transition-all duration-300 transform hover:scale-105 disabled:cursor-not-allowed"
+              className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white font-semibold py-3 px-6 rounded-lg transition-all duration-300 disabled:cursor-not-allowed"
             >
               {loading ? '⏳ Creating...' : '🚀 Create Project'}
             </button>

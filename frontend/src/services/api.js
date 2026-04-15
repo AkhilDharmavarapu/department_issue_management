@@ -157,6 +157,8 @@ export const issueAPI = {
     apiClient.get(`/issues/${id}`),
   updateIssueStatus: (id, data) =>
     apiClient.put(`/issues/${id}/status`, data),
+  uploadResolutionProof: (id, data) =>
+    apiClient.post(`/issues/${id}/resolution-proof`, data),
   addComment: (id, data) =>
     apiClient.post(`/issues/${id}/comments`, data),
 };

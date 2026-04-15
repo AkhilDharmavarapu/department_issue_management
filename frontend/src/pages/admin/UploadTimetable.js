@@ -7,7 +7,7 @@ const API_BASE = process.env.REACT_APP_API_URL?.replace('/api', '') || 'http://l
 const formatClassroom = (c) =>
   c ? `${c.department} - Year ${c.year} - Section ${c.section}` : '—';
 
-const UploadTimetable = ({ onBack }) => {
+const UploadTimetable = ({ onBack, isReadOnly = false }) => {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -101,15 +101,15 @@ const UploadTimetable = ({ onBack }) => {
   };
 
   return (
-    <div className="p-8 bg-gradient-to-br from-slate-900 to-slate-800 min-h-screen">
+    <div className="p-8 bg-white min-h-screen">
       <div className="max-w-4xl mx-auto">
-        <button onClick={onBack} className="inline-flex items-center gap-2 text-green-400 hover:text-green-300 mb-4 transition-colors">
+        <button onClick={onBack} className="inline-flex items-center gap-2 text-blue-600 hover:text-blue-700 mb-4 transition-colors">
           <span className="text-2xl">←</span>
           <span className="font-semibold">Back to Dashboard</span>
         </button>
         <div className="mb-8">
-          <h1 className="text-4xl font-bold text-white mb-2">📅 Upload Timetable</h1>
-          <p className="text-green-300/70">Upload classroom timetable images</p>
+          <h1 className="text-4xl font-bold text-gray-900 mb-2">📅 Upload Timetable</h1>
+          <p className="text-gray-500">Upload classroom timetable images</p>
         </div>
 
         {error && (
@@ -119,21 +119,22 @@ const UploadTimetable = ({ onBack }) => {
         )}
 
         {success && (
-          <div className="mb-6 p-4 bg-green-500/20 border border-green-500/50 text-green-300 rounded-xl animate-pulse">
+          <div className="mb-6 p-4 bg-green-50 border border-green-200 text-green-700 rounded-lg">
             {success}
           </div>
         )}
 
-        <div className="bg-slate-800 rounded-2xl shadow-2xl p-8 border border-green-500/20 mb-8">
-          <form onSubmit={handleSubmit} className="space-y-8">
+        {!isReadOnly && (
+          <div className="bg-white rounded-lg shadow-sm p-8 border border-gray-200 mb-8">
+            <form onSubmit={handleSubmit} className="space-y-8">
             <div>
-              <label className="block text-sm font-semibold text-green-300 mb-3">
+              <label className="block text-sm font-semibold text-gray-700 mb-3">
                 Select Classroom
               </label>
               <select
                 value={selectedClassroom}
                 onChange={(e) => setSelectedClassroom(e.target.value)}
-                className="w-full px-5 py-3 bg-slate-700 border border-green-500/30 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-green-500 transition"
+                className="w-full px-5 py-3 bg-gray-50 border border-gray-200 rounded-lg text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
               >
                 <option value="">Choose a classroom...</option>
                 {classrooms.map(c => (
@@ -145,10 +146,10 @@ const UploadTimetable = ({ onBack }) => {
             </div>
 
             <div>
-              <label className="block text-sm font-semibold text-green-300 mb-4">
+              <label className="block text-sm font-semibold text-gray-700 mb-4">
                 Upload Timetable Image
               </label>
-              <div className="border-2 border-dashed border-green-500/50 rounded-xl p-8 text-center hover:border-green-500 transition cursor-pointer">
+              <div className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center hover:border-gray-400 transition cursor-pointer">
                 <input
                   type="file"
                   accept="image/*"
@@ -158,10 +159,10 @@ const UploadTimetable = ({ onBack }) => {
                 />
                 <label htmlFor="file-input" className="cursor-pointer">
                   <div className="text-5xl mb-4">📸</div>
-                  <p className="text-white font-semibold mb-2">
+                  <p className="text-gray-900 font-semibold mb-2">
                     {selectedFile ? `✅ ${selectedFile.name}` : 'Click to upload or drag and drop'}
                   </p>
-                  <p className="text-green-300/70 text-sm">PNG, JPG, GIF up to 5MB</p>
+                  <p className="text-gray-500 text-sm">PNG, JPG, GIF up to 5MB</p>
                 </label>
               </div>
             </div>
@@ -169,29 +170,30 @@ const UploadTimetable = ({ onBack }) => {
             <button
               type="submit"
               disabled={loading || !selectedFile || !selectedClassroom}
-              className="w-full bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 disabled:from-gray-600 disabled:to-gray-700 text-white font-semibold py-3 px-6 rounded-lg transition-all duration-300 transform hover:scale-105 disabled:cursor-not-allowed disabled:transform-none"
+              className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 text-white font-semibold py-3 px-6 rounded-lg transition-all duration-300 disabled:cursor-not-allowed"
             >
               {loading ? '⏳ Uploading...' : '🚀 Upload Timetable'}
             </button>
           </form>
         </div>
+        )}
 
         {/* Existing Timetables */}
         <div>
-          <h2 className="text-2xl font-bold text-white mb-6">Uploaded Timetables</h2>
+          <h2 className="text-2xl font-bold text-gray-900 mb-6">Uploaded Timetables</h2>
           {loadingTimetables ? (
             <div className="text-center py-8">
-              <div className="w-12 h-12 border-4 border-green-500/30 border-t-green-500 rounded-full animate-spin mx-auto"></div>
-              <p className="text-green-300 mt-4">Loading timetables...</p>
+              <div className="w-12 h-12 border-4 border-blue-300 border-t-blue-600 rounded-full animate-spin mx-auto"></div>
+              <p className="text-gray-500 mt-4">Loading timetables...</p>
             </div>
           ) : timetables.length === 0 ? (
-            <div className="text-center py-8 bg-slate-800 rounded-2xl border border-green-500/20">
-              <p className="text-green-300/70">No timetables uploaded yet</p>
+            <div className="text-center py-8 bg-white rounded-lg border border-gray-200">
+              <p className="text-gray-500">No timetables uploaded yet</p>
             </div>
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
               {timetables.map(tt => (
-                <div key={tt._id} className="bg-slate-800 rounded-xl shadow-lg border border-green-500/20 overflow-hidden hover:border-green-500/50 transition-all duration-300">
+                <div key={tt._id} className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden hover:shadow-md transition-all duration-300">
                   <img
                     src={`${API_BASE}${tt.imageURL}`}
                     alt={`Timetable - ${formatClassroom(tt.classroomId)}`}
@@ -199,15 +201,15 @@ const UploadTimetable = ({ onBack }) => {
                     onError={(e) => { e.target.style.display = 'none'; }}
                   />
                   <div className="p-4">
-                    <h3 className="text-white font-semibold mb-1">
+                    <h3 className="text-gray-900 font-semibold mb-1">
                       {formatClassroom(tt.classroomId)}
                     </h3>
-                    <p className="text-green-300/70 text-xs mb-3">
+                    <p className="text-gray-600 text-xs mb-3">
                       Uploaded {new Date(tt.uploadedAt || tt.createdAt).toLocaleDateString()} by {tt.uploadedBy?.name || '—'}
                     </p>
                     <button
                       onClick={() => handleDelete(tt._id)}
-                      className="bg-red-600/30 hover:bg-red-600/50 text-red-300 border border-red-500/30 px-3 py-1 rounded-lg text-xs font-semibold transition-all"
+                      className="bg-red-500 hover:bg-red-600 text-white border border-red-500 px-3 py-1 rounded-lg text-xs font-semibold shadow-sm hover:shadow-md transition-all"
                     >
                       🗑️ Delete
                     </button>

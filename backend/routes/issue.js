@@ -6,28 +6,30 @@ const {
   getAllIssues,
   getIssueById,
   updateIssueStatus,
+  uploadResolutionProof,
   addComment,
 } = require('../controllers/issueController');
-const { authMiddleware, adminOnly, facultyOnly, studentOnly } = require('../middleware/auth');
+const { authMiddleware, authorize } = require('../middleware/auth');
+const uploadIssueProof = require('../middleware/issueUpload');
 
 /**
  * POST /api/issues
- * Create a new issue
+ * Create a new issue with optional proof file
  * Students can create issues
  */
-router.post('/', authMiddleware, studentOnly, createIssue);
+router.post('/', authMiddleware, authorize('student', 'admin'), uploadIssueProof, createIssue);
 
 /**
  * GET /api/issues
  * Get all issues
- * Admin only
+ * Admin and HOD only
  */
-router.get('/', authMiddleware, adminOnly, getAllIssues);
+router.get('/', authMiddleware, authorize('admin', 'hod'), getAllIssues);
 
 /**
  * GET /api/issues/my
  * Get issues for logged-in user's classroom
- * Students, Faculty, Admin
+ * Students, Faculty, Admin, HOD
  */
 router.get('/my', authMiddleware, getMyIssues);
 
@@ -41,9 +43,16 @@ router.get('/:id', authMiddleware, getIssueById);
 /**
  * PUT /api/issues/:id/status
  * Update issue status
- * Admin only
+ * Faculty, Admin, HOD
  */
-router.put('/:id/status', authMiddleware, facultyOnly, updateIssueStatus);
+router.put('/:id/status', authMiddleware, authorize('faculty', 'admin', 'hod'), updateIssueStatus);
+
+/**
+ * POST /api/issues/:id/resolution-proof
+ * Upload resolution proof when resolving issue
+ * Faculty, Admin, HOD
+ */
+router.post('/:id/resolution-proof', authMiddleware, authorize('faculty', 'admin', 'hod'), uploadIssueProof, uploadResolutionProof);
 
 /**
  * POST /api/issues/:id/comments

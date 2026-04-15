@@ -5,6 +5,7 @@ const User = require('../models/User');
 /**
  * Create a new issue
  * Students can report issues related to their classroom
+ * Can optionally upload a proof image
  */
 exports.createIssue = async (req, res, next) => {
   try {
@@ -28,6 +29,9 @@ exports.createIssue = async (req, res, next) => {
       });
     }
 
+    // Store file path if proof was uploaded
+    const reportProof = req.file ? req.file.filename : null;
+
     const issue = await Issue.create({
       title,
       description,
@@ -36,6 +40,7 @@ exports.createIssue = async (req, res, next) => {
       category,
       priority: priority || 'Medium',
       status: 'Open',
+      reportProof,
     });
 
     await issue.populate(['classroomId', 'reportedBy', 'assignedTo']);
@@ -54,7 +59,7 @@ exports.createIssue = async (req, res, next) => {
  * Get all issues for the logged-in user's classroom
  * Students can only see issues from their classroom
  * Faculty can see issues from their classrooms
- * Admin can see all issues
+ * Admin and HOD can see all issues
  */
 exports.getMyIssues = async (req, res, next) => {
   try {
@@ -82,7 +87,7 @@ exports.getMyIssues = async (req, res, next) => {
         filter.classroomId = { $in: classroomIds };
       }
     }
-    // Admin sees all issues (no filter)
+    // Admin and HOD see all issues (no filter)
 
     if (status) filter.status = status;
     if (priority) filter.priority = priority;
@@ -157,12 +162,13 @@ exports.getIssueById = async (req, res, next) => {
 
 /**
  * Update issue status / priority / assignment
- * Admin can update any issue. Faculty can update issues from their classrooms.
+ * Admin can update any issue. HOD can update any issue. Faculty can update issues from their classrooms.
  * Status lifecycle: Open → In Progress → Resolved (forward only)
  */
 exports.updateIssueStatus = async (req, res, next) => {
   try {
     const { status, priority, assignedTo } = req.body;
+    const { userId, role } = req.user;
 
     const issue = await Issue.findById(req.params.id);
     if (!issue) {
@@ -171,6 +177,18 @@ exports.updateIssueStatus = async (req, res, next) => {
         message: 'Issue not found',
       });
     }
+
+    // FACULTY: Check if assigned to the classroom containing this issue
+    if (role === 'faculty') {
+      const classroom = await Classroom.findById(issue.classroomId);
+      if (!classroom || !classroom.facultyList.some((id) => id.toString() === userId.toString())) {
+        return res.status(403).json({
+          success: false,
+          message: 'You are not assigned to this classroom',
+        });
+      }
+    }
+    // ADMIN and HOD: Full access (no additional checks needed)
 
     // Status lifecycle enforcement
     if (status) {
@@ -203,6 +221,43 @@ exports.updateIssueStatus = async (req, res, next) => {
     res.status(200).json({
       success: true,
       message: 'Issue updated successfully',
+      data: issue,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * Upload resolution proof for an issue
+ * Admin, Faculty, HOD can upload when resolving an issue
+ */
+exports.uploadResolutionProof = async (req, res, next) => {
+  try {
+    const issue = await Issue.findById(req.params.id);
+
+    if (!issue) {
+      return res.status(404).json({
+        success: false,
+        message: 'Issue not found',
+      });
+    }
+
+    if (!req.file) {
+      return res.status(400).json({
+        success: false,
+        message: 'Please upload a proof image',
+      });
+    }
+
+    // Store file path
+    issue.resolutionProof = req.file.filename;
+    await issue.save();
+    await issue.populate(['classroomId', 'reportedBy', 'assignedTo', 'comments.user']);
+
+    res.status(200).json({
+      success: true,
+      message: 'Resolution proof uploaded successfully',
       data: issue,
     });
   } catch (error) {

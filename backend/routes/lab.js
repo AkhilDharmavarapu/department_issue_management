@@ -7,7 +7,7 @@ const {
   updateLab,
   deleteLab,
 } = require('../controllers/labController');
-const { authMiddleware, adminOnly } = require('../middleware/auth');
+const { authMiddleware, adminOnly, authorize } = require('../middleware/auth');
 
 /**
  * POST /api/labs
@@ -19,9 +19,9 @@ router.post('/', authMiddleware, adminOnly, createLab);
 /**
  * GET /api/labs
  * Get all labs
- * Admin only
+ * Admin and HOD (read-only)
  */
-router.get('/', authMiddleware, adminOnly, getAllLabs);
+router.get('/', authMiddleware, authorize('admin', 'hod'), getAllLabs);
 
 /**
  * GET /api/labs/:id

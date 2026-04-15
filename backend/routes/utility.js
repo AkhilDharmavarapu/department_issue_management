@@ -7,7 +7,7 @@ const {
   updateUtility,
   deleteUtility,
 } = require('../controllers/utilityController');
-const { authMiddleware, adminOnly } = require('../middleware/auth');
+const { authMiddleware, adminOnly, authorize } = require('../middleware/auth');
 
 /**
  * POST /api/utilities
@@ -19,9 +19,9 @@ router.post('/', authMiddleware, adminOnly, createUtility);
 /**
  * GET /api/utilities
  * Get all utilities
- * Admin only
+ * Admin and HOD (read-only)
  */
-router.get('/', authMiddleware, adminOnly, getAllUtilities);
+router.get('/', authMiddleware, authorize('admin', 'hod'), getAllUtilities);
 
 /**
  * GET /api/utilities/:id

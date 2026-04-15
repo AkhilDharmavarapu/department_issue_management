@@ -32,7 +32,7 @@ const LoginPage = () => {
       if (result.success) {
         // Redirect based on role
         const role = result.user.role;
-        if (role === 'admin') {
+        if (role === 'admin' || role === 'hod') {
           navigate('/admin/dashboard');
         } else if (role === 'faculty') {
           navigate('/faculty/dashboard');
@@ -50,58 +50,58 @@ const LoginPage = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-green-900 flex items-center justify-center py-12 px-4">
+    <div className="min-h-screen bg-white flex items-center justify-center py-12 px-4">
       {/* Background Accent Elements */}
-      <div className="absolute top-0 right-0 w-96 h-96 bg-green-500/10 rounded-full blur-3xl -z-10"></div>
-      <div className="absolute bottom-0 left-0 w-96 h-96 bg-green-600/10 rounded-full blur-3xl -z-10"></div>
+      <div className="absolute top-0 right-0 w-96 h-96 bg-blue-50 rounded-full blur-3xl -z-10"></div>
+      <div className="absolute bottom-0 left-0 w-96 h-96 bg-blue-50 rounded-full blur-3xl -z-10"></div>
 
       <div className="w-full max-w-5xl grid grid-cols-1 md:grid-cols-2 gap-8 items-center">
         {/* Left Side - Branding & Features */}
-        <div className="hidden md:block text-white space-y-8">
+        <div className="hidden md:block space-y-8">
           <div>
-            <h1 className="text-5xl font-bold mb-4 bg-gradient-to-r from-green-400 to-emerald-400 bg-clip-text text-transparent">DEPARTMENT MANAGEMENT</h1>
-            <p className="text-2xl font-semibold text-gray-300">Issue & Resource Management System</p>
-            <div className="h-1 w-24 bg-gradient-to-r from-green-500 to-emerald-500 mt-4 rounded-full"></div>
+            <h1 className="text-5xl font-bold mb-4 text-gray-900">DEPARTMENT MANAGEMENT</h1>
+            <p className="text-2xl font-semibold text-gray-700">Issue & Resource Management System</p>
+            <div className="h-1 w-24 bg-blue-600 mt-4 rounded-full"></div>
           </div>
 
           <div className="space-y-6 pt-8">
             <div className="flex items-start gap-4">
-              <div className="w-12 h-12 bg-green-600 rounded-lg flex items-center justify-center flex-shrink-0">
+              <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center flex-shrink-0">
                 <span className="text-2xl">🏫</span>
               </div>
               <div>
-                <h3 className="text-lg font-semibold text-white">Classroom Management</h3>
-                <p className="text-gray-400 text-sm">Organize and manage classroom information</p>
+                <h3 className="text-lg font-semibold text-gray-900">Classroom Management</h3>
+                <p className="text-gray-600 text-sm">Organize and manage classroom information</p>
               </div>
             </div>
 
             <div className="flex items-start gap-4">
-              <div className="w-12 h-12 bg-green-600 rounded-lg flex items-center justify-center flex-shrink-0">
+              <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center flex-shrink-0">
                 <span className="text-2xl">⚠️</span>
               </div>
               <div>
-                <h3 className="text-lg font-semibold text-white">Issue Tracking</h3>
-                <p className="text-gray-400 text-sm">Report and resolve department issues</p>
+                <h3 className="text-lg font-semibold text-gray-900">Issue Tracking</h3>
+                <p className="text-gray-600 text-sm">Report and resolve department issues</p>
               </div>
             </div>
 
             <div className="flex items-start gap-4">
-              <div className="w-12 h-12 bg-green-600 rounded-lg flex items-center justify-center flex-shrink-0">
+              <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center flex-shrink-0">
                 <span className="text-2xl">📋</span>
               </div>
               <div>
-                <h3 className="text-lg font-semibold text-white">Project Management</h3>
-                <p className="text-gray-400 text-sm">Assign and track student projects</p>
+                <h3 className="text-lg font-semibold text-gray-900">Project Management</h3>
+                <p className="text-gray-600 text-sm">Assign and track student projects</p>
               </div>
             </div>
 
             <div className="flex items-start gap-4">
-              <div className="w-12 h-12 bg-green-600 rounded-lg flex items-center justify-center flex-shrink-0">
+              <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center flex-shrink-0">
                 <span className="text-2xl">🔧</span>
               </div>
               <div>
-                <h3 className="text-lg font-semibold text-white">Resource Tracking</h3>
-                <p className="text-gray-400 text-sm">Manage utilities, labs, and equipment</p>
+                <h3 className="text-lg font-semibold text-gray-900">Resource Tracking</h3>
+                <p className="text-gray-600 text-sm">Manage utilities, labs, and equipment</p>
               </div>
             </div>
           </div>
@@ -112,7 +112,7 @@ const LoginPage = () => {
           <div className="bg-white/95 backdrop-blur-sm rounded-2xl shadow-2xl p-8 md:p-10">
             {/* Logo Section */}
             <div className="text-center mb-8">
-              <div className="w-16 h-16 bg-gradient-to-br from-green-600 to-emerald-600 rounded-xl flex items-center justify-center mx-auto mb-4 shadow-lg">
+              <div className="w-16 h-16 bg-blue-600 rounded-xl flex items-center justify-center mx-auto mb-4 shadow-lg">
                 <span className="text-3xl">🏛️</span>
               </div>
               <h2 className="text-2xl font-bold text-gray-900">Welcome Back</h2>
@@ -147,7 +147,7 @@ const LoginPage = () => {
                   onChange={handleChange}
                   placeholder="name@college.edu"
                   required
-                  className="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-green-500 focus:ring-2 focus:ring-green-200 transition"
+                  className="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition"
                 />
               </div>
 
@@ -165,7 +165,7 @@ const LoginPage = () => {
                     onChange={handleChange}
                     placeholder="••••••••"
                     required
-                    className="w-full px-4 py-3 pr-12 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-green-500 focus:ring-2 focus:ring-green-200 transition"
+                    className="w-full px-4 py-3 pr-12 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition"
                   />
                   <button
                     type="button"
@@ -182,7 +182,7 @@ const LoginPage = () => {
               <button
                 type="submit"
                 disabled={loading}
-                className="w-full bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 disabled:from-gray-400 disabled:to-gray-500 text-white font-semibold py-3 px-4 rounded-lg transition duration-200 shadow-lg hover:shadow-xl transform hover:scale-105"
+                className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 text-white font-semibold py-3 px-4 rounded-lg transition duration-200 shadow-lg hover:shadow-xl"
               >
                 {loading ? (
                   <span className="flex items-center justify-center">

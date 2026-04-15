@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { utilityAPI } from '../../services/api';
 
-const Utilities = ({ onBack }) => {
+const Utilities = ({ onBack, isReadOnly = false }) => {
   const navigate = useNavigate();
   const [utilities, setUtilities] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -107,15 +107,15 @@ const Utilities = ({ onBack }) => {
   const maintenanceCount = utilities.filter(u => u.status === 'maintenance').length;
 
   return (
-    <div className="p-8 bg-gradient-to-br from-slate-900 to-slate-800 min-h-screen">
-      <button onClick={onBack} className="inline-flex items-center gap-2 text-green-400 hover:text-green-300 mb-4 transition-colors">
+    <div className="p-8 bg-white min-h-screen">
+      <button onClick={onBack} className="inline-flex items-center gap-2 text-blue-600 hover:text-blue-700 mb-4 transition-colors">
         <span className="text-2xl">←</span>
         <span className="font-semibold">Back to Dashboard</span>
       </button>
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8">
         <div>
-          <h1 className="text-4xl font-bold text-white mb-2">🔧 Utilities & Resources</h1>
-          <p className="text-emerald-300/70">Track and manage all resources</p>
+          <h1 className="text-4xl font-bold text-gray-900 mb-2">🔧 Utilities & Resources</h1>
+          <p className="text-gray-500">Track and manage all resources</p>
         </div>
         <button
           onClick={() => {
@@ -129,29 +129,34 @@ const Utilities = ({ onBack }) => {
               status: 'working',
             });
           }}
-          className="bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white px-6 py-3 rounded-xl font-semibold shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105 whitespace-nowrap"
+          disabled={isReadOnly}
+          className={`px-6 py-3 rounded-lg font-semibold shadow-sm transition-all duration-300 whitespace-nowrap ${
+            isReadOnly
+              ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+              : 'bg-blue-600 hover:bg-blue-700 text-white hover:shadow-md'
+          }`}
         >
           {showForm ? '✕ Cancel' : '+ Add Utility'}
         </button>
       </div>
 
       {/* Analytics Cards */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-8">
-        <div className="bg-slate-800 rounded-xl p-5 border border-slate-600/50">
-          <p className="text-gray-400 text-xs font-semibold uppercase tracking-wide mb-2">Total</p>
-          <p className="text-3xl font-bold text-white">{total}</p>
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-6 mb-8">
+        <div className="bg-white rounded-lg p-6 border border-gray-200">
+          <p className="text-gray-600 text-xs font-semibold uppercase tracking-wide mb-2">Total</p>
+          <p className="text-3xl font-bold text-gray-900">{total}</p>
         </div>
-        <div className="bg-emerald-500/10 rounded-xl p-5 border border-emerald-400/30">
-          <p className="text-emerald-300 text-xs font-semibold uppercase tracking-wide mb-2">Working</p>
-          <p className="text-3xl font-bold text-emerald-400">{workingCount}</p>
+        <div className="bg-blue-50 rounded-lg p-6 border border-blue-200">
+          <p className="text-blue-700 text-xs font-semibold uppercase tracking-wide mb-2">Working</p>
+          <p className="text-3xl font-bold text-blue-600">{workingCount}</p>
         </div>
-        <div className="bg-red-500/10 rounded-xl p-5 border border-red-400/30">
-          <p className="text-red-300 text-xs font-semibold uppercase tracking-wide mb-2">Damaged</p>
-          <p className="text-3xl font-bold text-red-400">{damagedCount}</p>
+        <div className="bg-red-50 rounded-lg p-6 border border-red-200">
+          <p className="text-red-700 text-xs font-semibold uppercase tracking-wide mb-2">Damaged</p>
+          <p className="text-3xl font-bold text-red-600">{damagedCount}</p>
         </div>
-        <div className="bg-yellow-500/10 rounded-xl p-5 border border-yellow-400/30">
-          <p className="text-yellow-300 text-xs font-semibold uppercase tracking-wide mb-2">Maintenance</p>
-          <p className="text-3xl font-bold text-yellow-400">{maintenanceCount}</p>
+        <div className="bg-yellow-50 rounded-lg p-6 border border-yellow-200">
+          <p className="text-yellow-700 text-xs font-semibold uppercase tracking-wide mb-2">Maintenance</p>
+          <p className="text-3xl font-bold text-yellow-600">{maintenanceCount}</p>
         </div>
       </div>
 
@@ -168,8 +173,8 @@ const Utilities = ({ onBack }) => {
             onClick={() => setFilterStatus(btn.value)}
             className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-300 ${
               filterStatus === btn.value
-                ? 'bg-gradient-to-r from-emerald-600 to-teal-600 text-white shadow-lg'
-                : 'bg-slate-700/50 text-gray-300 hover:bg-slate-700 border border-slate-600/30'
+                ? 'bg-blue-600 text-white shadow-md'
+                : 'bg-white text-gray-700 hover:bg-gray-50 border border-gray-300'
             }`}
           >
             {btn.label}
@@ -183,15 +188,15 @@ const Utilities = ({ onBack }) => {
         </div>
       )}
 
-      {showForm && (
-        <div className="bg-slate-800 rounded-2xl shadow-2xl p-8 mb-8 border border-emerald-500/20">
-          <h2 className="text-2xl font-bold text-white mb-6">
+      {showForm && !isReadOnly && (
+        <div className="bg-white rounded-lg shadow-sm p-8 mb-8 border border-gray-200">
+          <h2 className="text-2xl font-bold text-gray-900 mb-6">
             {editingId ? '✏️ Edit Utility' : '🆕 Add New Utility'}
           </h2>
           <form onSubmit={handleSubmit} className="space-y-6">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
               <div>
-                <label className="block text-sm font-semibold text-emerald-300 mb-2">
+                <label className="block text-sm font-semibold text-gray-700 mb-2">
                   Utility Name
                 </label>
                 <input
@@ -201,11 +206,11 @@ const Utilities = ({ onBack }) => {
                   onChange={handleChange}
                   placeholder="e.g., Projector"
                   required
-                  className="w-full px-4 py-3 bg-slate-700 border border-emerald-500/30 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-emerald-500 transition"
+                  className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
                 />
               </div>
               <div>
-                <label className="block text-sm font-semibold text-emerald-300 mb-2">
+                <label className="block text-sm font-semibold text-gray-700 mb-2">
                   Category
                 </label>
                 <select
@@ -213,7 +218,7 @@ const Utilities = ({ onBack }) => {
                   value={formData.category}
                   onChange={handleChange}
                   required
-                  className="w-full px-4 py-3 bg-slate-700 border border-emerald-500/30 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-emerald-500 transition"
+                  className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
                 >
                   <option value="">Select Category</option>
                   <option value="furniture">Furniture</option>
@@ -222,7 +227,7 @@ const Utilities = ({ onBack }) => {
                 </select>
               </div>
               <div>
-                <label className="block text-sm font-semibold text-emerald-300 mb-2">
+                <label className="block text-sm font-semibold text-gray-700 mb-2">
                   Location
                 </label>
                 <input
@@ -232,11 +237,11 @@ const Utilities = ({ onBack }) => {
                   onChange={handleChange}
                   placeholder="e.g., Room 101"
                   required
-                  className="w-full px-4 py-3 bg-slate-700 border border-emerald-500/30 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-emerald-500 transition"
+                  className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
                 />
               </div>
               <div>
-                <label className="block text-sm font-semibold text-emerald-300 mb-2">
+                <label className="block text-sm font-semibold text-gray-700 mb-2">
                   Quantity
                 </label>
                 <input
@@ -246,20 +251,20 @@ const Utilities = ({ onBack }) => {
                   onChange={handleChange}
                   placeholder="0"
                   required
-                  className="w-full px-4 py-3 bg-slate-700 border border-emerald-500/30 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-emerald-500 transition"
+                  className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
                 />
               </div>
             </div>
 
             <div>
-              <label className="block text-sm font-semibold text-emerald-300 mb-2">
+              <label className="block text-sm font-semibold text-gray-700 mb-2">
                 Status
               </label>
               <select
                 name="status"
                 value={formData.status}
                 onChange={handleChange}
-                className="w-full px-4 py-3 bg-slate-700 border border-emerald-500/30 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-emerald-500 transition"
+                className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
               >
                 <option value="working">Working</option>
                 <option value="damaged">Damaged</option>
@@ -269,7 +274,7 @@ const Utilities = ({ onBack }) => {
 
             <button
               type="submit"
-              className="w-full bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white font-semibold py-3 px-6 rounded-lg transition-all duration-300 transform hover:scale-105"
+              className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-6 rounded-lg transition-all duration-300"
             >
               {editingId ? '💾 Update Utility' : '➕ Add Utility'}
             </button>
@@ -280,36 +285,36 @@ const Utilities = ({ onBack }) => {
       {loading ? (
         <div className="text-center py-16">
           <div className="inline-block">
-            <div className="w-12 h-12 border-4 border-emerald-500/30 border-t-emerald-500 rounded-full animate-spin"></div>
-            <p className="text-emerald-300 mt-4 font-semibold">Loading utilities...</p>
+            <div className="w-12 h-12 border-4 border-blue-300 border-t-blue-600 rounded-full animate-spin"></div>
+            <p className="text-gray-500 mt-4 font-semibold">Loading utilities...</p>
           </div>
         </div>
       ) : utilities.length === 0 ? (
-        <div className="text-center py-16 bg-slate-800 rounded-2xl border border-emerald-500/20">
-          <p className="text-emerald-300/70 text-lg">No utilities found</p>
+        <div className="text-center py-16 bg-white rounded-lg border border-gray-200">
+          <p className="text-gray-500 text-lg">No utilities found</p>
         </div>
       ) : (
         <div className="grid grid-cols-1 gap-4">
           {utilities.map(utility => (
-            <div key={utility._id} className="bg-slate-800 rounded-xl shadow-lg hover:shadow-xl p-5 border border-emerald-500/20 hover:border-emerald-500/50 transition-all duration-300 transform hover:scale-[1.02]">
+            <div key={utility._id} className="bg-white rounded-lg shadow-sm hover:shadow-md p-6 border border-gray-200 hover:border-gray-300 transition-all duration-300">
               <div className="flex justify-between items-start gap-4">
                 <div className="flex-1">
-                  <h3 className="text-lg font-bold text-white mb-3">{utility.utilityName}</h3>
+                  <h3 className="text-lg font-bold text-gray-900 mb-3">{utility.utilityName}</h3>
                   <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 text-sm">
                     <div>
-                      <p className="text-emerald-300/70 text-xs font-semibold">Category</p>
-                      <p className="text-white font-medium capitalize">{utility.category}</p>
+                      <p className="text-gray-600 text-xs font-semibold">Category</p>
+                      <p className="text-gray-900 font-medium capitalize">{utility.category}</p>
                     </div>
                     <div>
-                      <p className="text-emerald-300/70 text-xs font-semibold">Location</p>
-                      <p className="text-white font-medium">{utility.location}</p>
+                      <p className="text-gray-600 text-xs font-semibold">Location</p>
+                      <p className="text-gray-900 font-medium">{utility.location}</p>
                     </div>
                     <div>
-                      <p className="text-emerald-300/70 text-xs font-semibold">Quantity</p>
-                      <p className="text-white font-medium">{utility.quantity}</p>
+                      <p className="text-gray-600 text-xs font-semibold">Quantity</p>
+                      <p className="text-gray-900 font-medium">{utility.quantity}</p>
                     </div>
                     <div>
-                      <p className="text-emerald-300/70 text-xs font-semibold">Status</p>
+                      <p className="text-gray-600 text-xs font-semibold">Status</p>
                       <span className={`inline-block px-3 py-1 rounded-full text-xs font-semibold border mt-1 ${getStatusColor(utility.status)}`}>
                         {utility.status}
                       </span>
@@ -317,18 +322,22 @@ const Utilities = ({ onBack }) => {
                   </div>
                 </div>
                 <div className="flex gap-2">
-                  <button
-                    onClick={() => handleEdit(utility)}
-                    className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg font-semibold transition-all duration-300 transform hover:scale-105"
-                  >
-                    ✏️
-                  </button>
-                  <button
-                    onClick={() => handleDelete(utility._id)}
-                    className="bg-red-600/80 hover:bg-red-700 text-white px-4 py-2 rounded-lg font-semibold transition-all duration-300 transform hover:scale-105"
-                  >
-                    🗑️
-                  </button>
+                  {!isReadOnly && (
+                    <>
+                      <button
+                        onClick={() => handleEdit(utility)}
+                        className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-semibold shadow-sm hover:shadow-md transition-all duration-300"
+                      >
+                        ✏️
+                      </button>
+                      <button
+                        onClick={() => handleDelete(utility._id)}
+                        className="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg font-semibold shadow-sm hover:shadow-md transition-all duration-300"
+                      >
+                        🗑️
+                      </button>
+                    </>
+                  )}
                 </div>
               </div>
             </div>

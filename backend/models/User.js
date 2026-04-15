@@ -32,7 +32,7 @@ const userSchema = new mongoose.Schema(
     },
     role: {
       type: String,
-      enum: ['admin', 'faculty', 'student'],
+      enum: ['admin', 'faculty', 'student', 'hod'],
       required: [true, 'Please specify a role'],
       default: 'student',
     },
@@ -44,6 +44,24 @@ const userSchema = new mongoose.Schema(
     isActive: {
       type: Boolean,
       default: true,
+    },
+    courseType: {
+      type: String,
+      enum: ['BTech', 'MTech'],
+      default: 'BTech',
+    },
+    specialization: {
+      type: String,
+      enum: {
+        values: [
+          null,
+          'Artificial Intelligence and Machine Learning',
+          'Computer Science & Technology',
+          'Computer Networks and Information Security',
+        ],
+        message: 'Invalid specialization',
+      },
+      default: null,
     },
   },
   {
