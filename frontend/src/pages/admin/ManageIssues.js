@@ -347,10 +347,10 @@ const ManageIssues = ({ onBack, isReadOnly = false }) => {
                       <p className="text-gray-500 text-xs font-semibold mb-2">Reported Proof (by Student)</p>
                       {expandedIssueDetails.reportProof ? (
                         <img 
-                          src={`http://localhost:5000/uploads/issues/${expandedIssueDetails.reportProof}`}
+                          src={`http://localhost:5000/${expandedIssueDetails.reportProof}`}
                           alt="Report proof"
                           className="w-full max-w-md rounded-lg border border-gray-300 cursor-pointer hover:shadow-md transition-shadow"
-                          onClick={() => window.open(`http://localhost:5000/uploads/issues/${expandedIssueDetails.reportProof}`, '_blank')}
+                          onClick={() => window.open(`http://localhost:5000/${expandedIssueDetails.reportProof}`, '_blank')}
                         />
                       ) : (
                         <p className="text-gray-500 text-sm italic">No proof uploaded by student</p>
@@ -362,10 +362,10 @@ const ManageIssues = ({ onBack, isReadOnly = false }) => {
                       <p className="text-gray-500 text-xs font-semibold mb-2">Resolution Proof (by Admin/Faculty/HOD)</p>
                       {expandedIssueDetails.resolutionProof ? (
                         <img 
-                          src={`http://localhost:5000/uploads/issues/${expandedIssueDetails.resolutionProof}`}
+                          src={`http://localhost:5000/${expandedIssueDetails.resolutionProof}`}
                           alt="Resolution proof"
                           className="w-full max-w-md rounded-lg border border-gray-300 cursor-pointer hover:shadow-md transition-shadow"
-                          onClick={() => window.open(`http://localhost:5000/uploads/issues/${expandedIssueDetails.resolutionProof}`, '_blank')}
+                          onClick={() => window.open(`http://localhost:5000/${expandedIssueDetails.resolutionProof}`, '_blank')}
                         />
                       ) : (
                         <>

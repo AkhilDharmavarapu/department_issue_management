@@ -420,3 +420,160 @@ exports.getAvailableRooms = async (req, res, next) => {
     next(error);
   }
 };
+
+/**
+ * TASK 1-2: Get students for a specific classroom
+ * Returns ONLY students assigned to that classroom
+ * Admin only
+ */
+exports.getClassroomStudents = async (req, res, next) => {
+  try {
+    const mongoose = require('mongoose');
+    
+    // ==================== TASK 1: LOG req.params.id ====================
+    const classroomIdParam = req.params.id;
+    console.log('\n╔════════════════════════════════════════════════════════════╗');
+    console.log('║ TASK 1: DEBUG CLASSROOM STUDENTS MAPPING                    ║');
+    console.log('╚════════════════════════════════════════════════════════════╝');
+    console.log('[req.params.id] Value:', classroomIdParam);
+    console.log('[req.params.id] Type:', typeof classroomIdParam);
+    console.log('[req.params.id] Is Valid ObjectId?', mongoose.Types.ObjectId.isValid(classroomIdParam));
+
+    // Verify classroom exists
+    const classroom = await Classroom.findById(classroomIdParam);
+    if (!classroom) {
+      console.log('[ERROR] Classroom not found with ID:', classroomIdParam);
+      return res.status(404).json({
+        success: false,
+        message: 'Classroom not found',
+      });
+    }
+
+    console.log('[Classroom._id] Value:', classroom._id.toString());
+    console.log('[Classroom._id] Type:', typeof classroom._id);
+    console.log('[Classroom._id] ObjectId?', classroom._id instanceof mongoose.Types.ObjectId);
+
+    // ==================== TASK 1: LOG ALL STUDENT classroomId VALUES ====================
+    console.log('\n--- FETCHING ALL STUDENTS WITH DETAILED classroomId INFO ---');
+    
+    const allStudentsRaw = await User.find({ role: 'student' })
+      .select('name registrationNumber classroomId');
+    
+    console.log(`[Total Students in DB]: ${allStudentsRaw.length}`);
+    
+    if (allStudentsRaw.length > 0) {
+      console.log('\n[Sample of student classroomId VALUES & TYPES]:');
+      allStudentsRaw.slice(0, 5).forEach((student, idx) => {
+        const cid = student.classroomId;
+        const type = cid ? typeof cid : 'null/undefined';
+        const isObjectId = cid instanceof mongoose.Types.ObjectId;
+        const isString = typeof cid === 'string';
+        const value = cid ? cid.toString() : 'null/undefined';
+        
+        console.log(`  [${idx + 1}] Name: ${student.name} | RegNo: ${student.registrationNumber}`);
+        console.log(`      classroomId: ${value}`);
+        console.log(`      Type: ${type} | ObjectId? ${isObjectId} | String? ${isString}`);
+      });
+    }
+
+    // ==================== TASK 2: FORCE MATCHING TYPES ====================
+    console.log('\n--- TASK 2: ATTEMPTING QUERIES WITH BOTH TYPES ---');
+
+    // Try as ObjectId
+    const convertedId = new mongoose.Types.ObjectId(classroomIdParam);
+    console.log('[Query 1] Using ObjectId:', convertedId);
+    const studentsAsObjectId = await User.find({
+      role: 'student',
+      classroomId: convertedId,
+    }).select('name registrationNumber classroomId');
+    console.log(`[Query 1 Result] Found ${studentsAsObjectId.length} students`);
+
+    // Try as String
+    console.log('[Query 2] Using String:', classroomIdParam);
+    const studentsAsString = await User.find({
+      role: 'student',
+      classroomId: classroomIdParam,
+    }).select('name registrationNumber classroomId');
+    console.log(`[Query 2 Result] Found ${studentsAsString.length} students`);
+
+    // Use whichever returned results
+    let students = studentsAsObjectId.length > 0 ? studentsAsObjectId : studentsAsString;
+    
+    if (studentsAsObjectId.length > 0 && studentsAsString.length === 0) {
+      console.log('✅ [DIAGNOSIS] classroomId stored as ObjectId - Query 1 worked');
+    } else if (studentsAsString.length > 0 && studentsAsObjectId.length === 0) {
+      console.log('✅ [DIAGNOSIS] classroomId stored as STRING - Query 2 worked');
+    } else if (studentsAsObjectId.length > 0 && studentsAsString.length > 0) {
+      console.log('⚠️  [DIAGNOSIS] Both queries returned results - possible data inconsistency');
+      students = studentsAsObjectId; // Prefer ObjectId
+    } else {
+      console.log('❌ [DIAGNOSIS] No students found with either query type');
+    }
+
+    // ==================== TASK 1: MANUAL COMPARISON ====================
+    console.log('\n--- TASK 1: MANUAL COMPARISON ---');
+    console.log(`[Classroom ID (from param)]: ${classroomIdParam}`);
+    console.log(`[Classroom ID (from DB)]: ${classroom._id.toString()}`);
+    console.log(`[Match?] ${classroomIdParam === classroom._id.toString() ? '✅ YES' : '❌ NO'}`);
+
+    if (students.length > 0) {
+      console.log('\n[Sample Matches]:');
+      students.slice(0, 3).forEach((student, idx) => {
+        const match = student.classroomId.toString() === classroom._id.toString();
+        console.log(`  [${idx + 1}] ${student.name}`);
+        console.log(`      Student classroomId: ${student.classroomId.toString()}`);
+        console.log(`      Classroom._id: ${classroom._id.toString()}`);
+        console.log(`      Match? ${match ? '✅' : '❌'}`);
+      });
+    }
+
+    // ==================== TASK 4: DATA CONSISTENCY CHECK ====================
+    console.log('\n--- TASK 4: DATA CONSISTENCY CHECK ---');
+    
+    // Check data types in database
+    const typeCheck = await User.aggregate([
+      { $match: { role: 'student' } },
+      {
+        $group: {
+          _id: { $type: '$classroomId' },
+          count: { $sum: 1 },
+          samples: { $push: { name: '$name', classroomId: '$classroomId' } },
+        },
+      },
+    ]);
+
+    console.log('[classroomId Field Types in Database]:');
+    typeCheck.forEach(record => {
+      console.log(`  Type: ${record._id}, Count: ${record.count}`);
+      if (record.samples.length > 0) {
+        console.log(`    Sample: ${record.samples[0].classroomId} (from ${record.samples[0].name})`);
+      }
+    });
+
+    console.log('\n╔════════════════════════════════════════════════════════════╗');
+    console.log('║ END DEBUG OUTPUT                                            ║');
+    console.log('╚════════════════════════════════════════════════════════════╝\n');
+
+    // Return students sorted by name
+    students = students.sort((a, b) => a.name.localeCompare(b.name));
+
+    res.status(200).json({
+      success: true,
+      count: students.length,
+      debug: {
+        classroomIdParam,
+        classroomIdFromDb: classroom._id.toString(),
+        classroomIdMatch: classroomIdParam === classroom._id.toString(),
+        typeMatches: {
+          queryObjectId: studentsAsObjectId.length,
+          queryString: studentsAsString.length,
+        },
+      },
+      data: students,
+    });
+  } catch (error) {
+    console.error('[CLASSROOM STUDENTS] ERROR:', error.message);
+    console.error(error);
+    next(error);
+  }
+};

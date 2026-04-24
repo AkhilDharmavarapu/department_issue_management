@@ -81,7 +81,7 @@ useEffect(() => {
       console.log('[AUTH] Login attempt for:', email);
       
       const response = await authAPI.login(email, password);
-      const { token } = response.data;
+      const { token, user: loginUser } = response.data;
 
       console.log('[AUTH] Login successful, storing token');
       
@@ -103,11 +103,12 @@ useEffect(() => {
         email: userData.email,
         role_from_db: userData.role,
         role_stored: transformedUser.role,
+        isFirstLogin: userData.isFirstLogin,
       });
       setUser(transformedUser);
       setError(null);
 
-      return { success: true, user: transformedUser };
+      return { success: true, user: transformedUser, isFirstLogin: userData.isFirstLogin };
     } catch (err) {
       console.error('[AUTH] Login failed:', {
         status: err.response?.status,

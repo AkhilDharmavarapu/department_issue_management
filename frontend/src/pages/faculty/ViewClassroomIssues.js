@@ -231,9 +231,10 @@ const ViewClassroomIssues = ({ onBack }) => {
                         <p className="text-gray-600 text-xs mb-2">Student's Proof</p>
                         {issue.reportProof ? (
                           <img 
-                            src={`http://localhost:5000/uploads/issues/${issue.reportProof}`}
+                            src={`http://localhost:5000/${issue.reportProof}`}
                             alt="Report proof"
-                            className="w-full max-h-40 object-cover rounded-lg border border-gray-300"
+                            className="w-full max-h-40 object-cover rounded-lg border border-gray-300 cursor-pointer hover:shadow-md transition-shadow"
+                            onClick={() => window.open(`http://localhost:5000/${issue.reportProof}`, '_blank')}
                           />
                         ) : (
                           <p className="text-gray-400 text-sm italic">No proof uploaded</p>
@@ -243,9 +244,10 @@ const ViewClassroomIssues = ({ onBack }) => {
                         <p className="text-gray-600 text-xs mb-2">Resolution Proof</p>
                         {issue.resolutionProof ? (
                           <img 
-                            src={`http://localhost:5000/uploads/issues/${issue.resolutionProof}`}
+                            src={`http://localhost:5000/${issue.resolutionProof}`}
                             alt="Resolution proof"
-                            className="w-full max-h-40 object-cover rounded-lg border border-gray-300"
+                            className="w-full max-h-40 object-cover rounded-lg border border-gray-300 cursor-pointer hover:shadow-md transition-shadow"
+                            onClick={() => window.open(`http://localhost:5000/${issue.resolutionProof}`, '_blank')}
                           />
                         ) : (
                           <p className="text-gray-400 text-sm italic">Not yet uploaded</p>

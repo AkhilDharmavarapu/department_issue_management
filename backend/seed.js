@@ -45,6 +45,7 @@ const seedDatabase = async () => {
       name: 'Admin User',
       email: 'admin@college.edu',
       passwordHash: 'password123',
+      teacherId: 'ADMIN001',
       role: 'admin',
       isActive: true,
     });
@@ -53,6 +54,7 @@ const seedDatabase = async () => {
       name: 'Faculty User',
       email: 'faculty@college.edu',
       passwordHash: 'password123',
+      teacherId: 'FACULTY001',
       role: 'faculty',
       isActive: true,
     });
@@ -61,6 +63,7 @@ const seedDatabase = async () => {
       name: 'HOD User',
       email: 'hod@college.edu',
       passwordHash: 'password123',
+      teacherId: 'HOD001',
       role: 'hod',
       isActive: true,
     });
@@ -69,7 +72,8 @@ const seedDatabase = async () => {
       name: 'Student User',
       email: 'student@college.edu',
       passwordHash: 'password123',
-      rollNumber: 'CS001',
+      registrationNumber: 'CS001',
+      courseType: 'BTech',
       role: 'student',
       isActive: true,
     });

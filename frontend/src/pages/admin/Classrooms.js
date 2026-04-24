@@ -25,6 +25,10 @@ const Classrooms = ({ onBack, isReadOnly = false }) => {
   const [submitError, setSubmitError] = useState('');
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState(null);
+  const [selectedClassroom, setSelectedClassroom] = useState(null);
+  const [showDetailModal, setShowDetailModal] = useState(false);
+  const [classroomStudents, setClassroomStudents] = useState([]);
+  const [loadingStudents, setLoadingStudents] = useState(false);
   const formRef = React.useRef(null);
   const [formData, setFormData] = useState({
     course: '',
@@ -51,6 +55,13 @@ const Classrooms = ({ onBack, isReadOnly = false }) => {
     }
   }, [showForm]);
 
+  // Fetch students for selected classroom
+  useEffect(() => {
+    if (showDetailModal && selectedClassroom) {
+      fetchClassroomStudents(selectedClassroom._id);
+    }
+  }, [showDetailModal, selectedClassroom]);
+
   const fetchClassrooms = async () => {
     setLoading(true);
     try {
@@ -70,6 +81,20 @@ const Classrooms = ({ onBack, isReadOnly = false }) => {
       setFacultyUsers(response.data.data || []);
     } catch (err) {
       // silent
+    }
+  };
+
+  const fetchClassroomStudents = async (classroomId) => {
+    setLoadingStudents(true);
+    try {
+      // TASK 6: Use dedicated endpoint for classroom students
+      const response = await classroomAPI.getClassroomStudents(classroomId);
+      setClassroomStudents(response.data.data || []);
+    } catch (err) {
+      console.error('Failed to fetch students:', err);
+      setClassroomStudents([]);
+    } finally {
+      setLoadingStudents(false);
     }
   };
 
@@ -288,6 +313,24 @@ const Classrooms = ({ onBack, isReadOnly = false }) => {
       facultyList: [],
     });
     setSubmitError('');
+  };
+
+  const openDetailModal = (classroom) => {
+    setSelectedClassroom(classroom);
+    setShowDetailModal(true);
+  };
+
+  const closeDetailModal = () => {
+    setShowDetailModal(false);
+    setSelectedClassroom(null);
+    setClassroomStudents([]);
+  };
+
+  const handleEditFromModal = () => {
+    if (selectedClassroom) {
+      handleEdit(selectedClassroom);
+      closeDetailModal();
+    }
   };
 
   return (
@@ -543,7 +586,7 @@ const Classrooms = ({ onBack, isReadOnly = false }) => {
         </div>
       )}
 
-      {/* Classrooms List */}
+      {/* Classrooms Grid */}
       <div className="mb-8">
         {loading ? (
           <div className="text-center py-12">
@@ -553,99 +596,159 @@ const Classrooms = ({ onBack, isReadOnly = false }) => {
             </div>
           </div>
         ) : classrooms.length === 0 ? (
-          <Card>
-            <p className="text-center text-gray-500 py-8">📭 No classrooms yet. Create one to get started!</p>
-          </Card>
+          <div className="text-center py-12 bg-white rounded-lg border border-gray-200">
+            <p className="text-gray-500 text-lg font-medium">📭 No classrooms created</p>
+            <p className="text-gray-400 text-sm mt-1">Click "Add Classroom" to create one</p>
+          </div>
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
             {classrooms.map(classroom => (
-              <Card key={classroom._id} className="hover:shadow-lg transition-shadow">
-                {/* Main Section Display */}
-                <div className="mb-6 pb-6 border-b border-gray-200">
-                  {/* Section as Primary (Large Text) */}
-                  <p className="text-4xl font-bold text-gray-900 mb-2">
-                    {classroom.section || 'Not assigned'}
-                  </p>
-                  {/* Subtext: Year and Course */}
-                  <p className="text-sm text-gray-600">
-                    Year {classroom.year || 'N/A'} • {classroom.course || 'N/A'}
-                  </p>
-                </div>
-
-                {/* Room Information */}
-                <div className="mb-4 p-3 bg-blue-50 rounded-lg border border-blue-200">
-                  <p className="text-xs font-semibold text-blue-700 uppercase tracking-wide mb-1">Room</p>
-                  {classroom.room ? (
-                    <div>
-                      <p className="text-lg font-bold text-blue-900">
-                        {classroom.room?.number || classroom.room}
-                      </p>
-                      <p className="text-xs text-blue-700 mt-1">
-                        {classroom.room?.block || classroom.block || 'Unknown block'}
-                      </p>
-                    </div>
-                  ) : (
-                    <p className="text-sm text-gray-600 italic">Room not assigned</p>
-                  )}
-                </div>
-
-                {/* Course & Specialization Info */}
-                <div className="mb-4 p-3 bg-gray-50 rounded-lg border border-gray-200">
-                  <p className="text-xs font-semibold text-gray-700 uppercase tracking-wide mb-1">Program</p>
-                  <p className="text-sm font-medium text-gray-900">
-                    {classroom.course && classroom.specialization
-                      ? `${classroom.course} - ${classroom.specialization}`
-                      : 'Not assigned'}
-                  </p>
-                </div>
-
-                {/* Faculty Assignment */}
-                {classroom.facultyList && classroom.facultyList.length > 0 ? (
-                  <div className="mb-4">
-                    <p className="text-xs font-semibold text-gray-600 uppercase tracking-wide mb-2">
-                      Faculty ({classroom.facultyList.length})
-                    </p>
-                    <div className="space-y-1.5">
-                      {classroom.facultyList.map(f => (
-                        <div
-                          key={f._id || f}
-                          className="flex items-center gap-2 px-2.5 py-1.5 bg-blue-50 rounded border border-blue-200"
-                        >
-                          <span className="text-sm font-medium text-blue-900">
-                            {f.name || 'Faculty'}
-                          </span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                ) : (
-                  <div className="mb-4 p-2.5 bg-gray-50 rounded border border-gray-200">
-                    <p className="text-xs text-gray-600 italic">No faculty assigned</p>
-                  </div>
-                )}
-
-                {/* Actions */}
-                {!isReadOnly && (
-                  <div className="flex gap-2 pt-3 border-t border-gray-200">
-                    <button
-                      onClick={() => handleEdit(classroom)}
-                      className="flex-1 bg-blue-50 hover:bg-blue-100 text-blue-700 font-semibold py-2 px-3 rounded-lg text-sm border border-blue-200 transition-colors"
-                    >
-                      ✏️ Edit
-                    </button>
-                    <button
-                      onClick={() => handleDelete(classroom._id)}
-                      className="flex-1 bg-red-50 hover:bg-red-100 text-red-700 font-semibold py-2 px-3 rounded-lg text-sm border border-red-200 transition-colors"
-                    >
-                      🗑️ Delete
-                    </button>
-                  </div>
-                )}
-              </Card>
-            ))}}
+              <div
+                key={classroom._id}
+                onClick={() => openDetailModal(classroom)}
+                className="bg-white rounded-lg border border-gray-200 p-5 shadow-sm hover:shadow-md hover:border-blue-300 cursor-pointer transition-all duration-200 transform hover:-translate-y-0.5"
+              >
+                {/* Section - Large Text */}
+                <p className="text-3xl font-bold text-gray-900 mb-2">
+                  {classroom.section || 'N/A'}
+                </p>
+                {/* Year + Course - Small Text */}
+                <p className="text-xs text-gray-500 font-medium">
+                  Year {classroom.year || 'N/A'} • {classroom.course || 'N/A'}
+                </p>
+              </div>
+            ))}
           </div>
         )}
       </div>
+
+      {/* Detail Modal */}
+      {showDetailModal && selectedClassroom && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-lg shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+            {/* Modal Header */}
+            <div className="sticky top-0 bg-gradient-to-r from-blue-600 to-blue-700 text-white px-6 py-5 border-b border-blue-800 flex justify-between items-center">
+              <h2 className="text-2xl font-bold">{selectedClassroom.section || 'Classroom'}</h2>
+              <button
+                onClick={closeDetailModal}
+                className="text-white hover:bg-blue-800 rounded-lg p-2 transition-colors"
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Modal Content */}
+            <div className="p-6 space-y-6">
+              {/* Basic Info Grid */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {/* Room */}
+                <div className="bg-gray-50 rounded-lg p-4 border border-gray-200">
+                  <p className="text-xs font-semibold text-gray-600 uppercase tracking-wide mb-2">Room</p>
+                  <p className="text-lg font-bold text-gray-900">
+                    {selectedClassroom.room?.number || selectedClassroom.room || 'N/A'}
+                  </p>
+                </div>
+
+                {/* Block */}
+                <div className="bg-gray-50 rounded-lg p-4 border border-gray-200">
+                  <p className="text-xs font-semibold text-gray-600 uppercase tracking-wide mb-2">Block</p>
+                  <p className="text-lg font-bold text-gray-900">
+                    {selectedClassroom.room?.block || selectedClassroom.block || 'N/A'}
+                  </p>
+                </div>
+              </div>
+
+              {/* Program */}
+              <div className="bg-blue-50 rounded-lg p-4 border border-blue-200">
+                <p className="text-xs font-semibold text-blue-600 uppercase tracking-wide mb-2">Program</p>
+                <p className="text-lg font-bold text-blue-900">
+                  {selectedClassroom.course && selectedClassroom.specialization
+                    ? `${selectedClassroom.course} - ${selectedClassroom.specialization}`
+                    : 'N/A'}
+                </p>
+              </div>
+
+              {/* Assigned Faculty */}
+              <div>
+                <p className="text-xs font-semibold text-gray-600 uppercase tracking-wide mb-3">Assigned Faculty</p>
+                {selectedClassroom.facultyList && selectedClassroom.facultyList.length > 0 ? (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    {selectedClassroom.facultyList.map(f => (
+                      <div
+                        key={f._id || f}
+                        className="bg-blue-50 rounded-lg p-3 border border-blue-200"
+                      >
+                        <p className="font-medium text-blue-900 text-sm">
+                          {f.name || 'Faculty'}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-sm text-gray-500 italic">No faculty assigned</p>
+                )}
+              </div>
+
+              {/* Students List */}
+              <div>
+                <p className="text-xs font-semibold text-gray-600 uppercase tracking-wide mb-3">
+                  Students ({classroomStudents.length})
+                </p>
+                {loadingStudents ? (
+                  <div className="text-center py-4">
+                    <div className="inline-block w-6 h-6 border-3 border-blue-200 border-t-blue-600 rounded-full animate-spin"></div>
+                    <p className="text-sm text-gray-500 mt-2">Loading students...</p>
+                  </div>
+                ) : classroomStudents.length > 0 ? (
+                  <div className="max-h-48 overflow-y-auto border border-gray-200 rounded-lg">
+                    <table className="w-full text-sm">
+                      <thead className="bg-gray-100 sticky top-0 border-b border-gray-200">
+                        <tr>
+                          <th className="text-left px-4 py-3 font-semibold text-gray-700">Name</th>
+                          <th className="text-left px-4 py-3 font-semibold text-gray-700">Registration Number</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {classroomStudents.map(student => (
+                          <tr key={student._id} className="border-b border-gray-200 hover:bg-gray-50">
+                            <td className="px-4 py-3 text-gray-900">{student.name}</td>
+                            <td className="px-4 py-3 text-gray-600 font-mono">{student.registrationNumber || 'N/A'}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                ) : (
+                  <p className="text-sm text-gray-500 italic">No students assigned to this classroom</p>
+                )}
+              </div>
+
+              {/* Action Buttons */}
+              {!isReadOnly && (
+                <div className="flex gap-3 pt-4 border-t border-gray-200">
+                  <button
+                    onClick={handleEditFromModal}
+                    className="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2.5 px-4 rounded-lg transition-colors shadow-sm"
+                  >
+                    ✏️ Edit
+                  </button>
+                  <button
+                    onClick={() => {
+                      if (window.confirm('Are you sure you want to delete this classroom?')) {
+                        handleDelete(selectedClassroom._id);
+                        closeDetailModal();
+                      }
+                    }}
+                    className="flex-1 bg-red-600 hover:bg-red-700 text-white font-semibold py-2.5 px-4 rounded-lg transition-colors shadow-sm"
+                  >
+                    🗑️ Delete
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

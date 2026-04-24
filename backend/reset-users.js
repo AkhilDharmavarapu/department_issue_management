@@ -23,6 +23,7 @@ const resetDatabase = async () => {
       name: 'Admin User',
       email: 'admin@college.edu',
       passwordHash: 'password123',
+      teacherId: 'ADMIN001',
       role: 'admin',
       isActive: true,
     });
@@ -31,6 +32,7 @@ const resetDatabase = async () => {
       name: 'Faculty User',
       email: 'faculty@college.edu',
       passwordHash: 'password123',
+      teacherId: 'FACULTY001',
       role: 'faculty',
       isActive: true,
     });
@@ -39,7 +41,8 @@ const resetDatabase = async () => {
       name: 'Student User',
       email: 'student@college.edu',
       passwordHash: 'password123',
-      rollNumber: 'CS001',
+      registrationNumber: 'CS001',
+      courseType: 'BTech',
       role: 'student',
       isActive: true,
     });

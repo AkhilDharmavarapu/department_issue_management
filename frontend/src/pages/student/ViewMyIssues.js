@@ -161,6 +161,32 @@ const ViewMyIssues = ({ onBack }) => {
                 </div>
               </div>
 
+              {/* Proof Preview Thumbnails */}
+              {(issue.reportProof || issue.resolutionProof) && (
+                <div className="mb-4 flex gap-2 flex-wrap">
+                  {issue.reportProof && (
+                    <div className="relative group">
+                      <img 
+                        src={`http://localhost:5000/${issue.reportProof}`}
+                        alt="Proof thumbnail"
+                        className="h-16 w-16 object-cover rounded-lg border border-gray-300"
+                      />
+                      <span className="absolute bottom-0 right-0 bg-blue-500 text-white text-xs px-1 rounded-tl">📸</span>
+                    </div>
+                  )}
+                  {issue.resolutionProof && (
+                    <div className="relative group">
+                      <img 
+                        src={`http://localhost:5000/${issue.resolutionProof}`}
+                        alt="Resolution thumbnail"
+                        className="h-16 w-16 object-cover rounded-lg border border-green-300"
+                      />
+                      <span className="absolute bottom-0 right-0 bg-green-500 text-white text-xs px-1 rounded-tl">✓</span>
+                    </div>
+                  )}
+                </div>
+              )}
+
               {/* View Details Button */}
               <button
                 onClick={() => {
@@ -233,10 +259,10 @@ const ViewMyIssues = ({ onBack }) => {
                   <p className="text-gray-600 text-xs font-medium mb-2">Your Proof</p>
                   {selectedIssue.reportProof ? (
                     <img 
-                      src={`http://localhost:5000/uploads/issues/${selectedIssue.reportProof}`}
+                      src={`http://localhost:5000/${selectedIssue.reportProof}`}
                       alt="Report proof"
                       className="w-full max-h-40 object-cover rounded-lg border border-gray-300 cursor-pointer hover:border-blue-400 transition-colors"
-                      onClick={() => window.open(`http://localhost:5000/uploads/issues/${selectedIssue.reportProof}`, '_blank')}
+                      onClick={() => window.open(`http://localhost:5000/${selectedIssue.reportProof}`, '_blank')}
                     />
                   ) : (
                     <p className="text-gray-500 text-sm italic py-4">No proof uploaded when reporting</p>
@@ -246,10 +272,10 @@ const ViewMyIssues = ({ onBack }) => {
                   <p className="text-gray-600 text-xs font-medium mb-2">Resolution Proof</p>
                   {selectedIssue.resolutionProof ? (
                     <img 
-                      src={`http://localhost:5000/uploads/issues/${selectedIssue.resolutionProof}`}
+                      src={`http://localhost:5000/${selectedIssue.resolutionProof}`}
                       alt="Resolution proof"
                       className="w-full max-h-40 object-cover rounded-lg border border-gray-300 cursor-pointer hover:border-blue-400 transition-colors"
-                      onClick={() => window.open(`http://localhost:5000/uploads/issues/${selectedIssue.resolutionProof}`, '_blank')}
+                      onClick={() => window.open(`http://localhost:5000/${selectedIssue.resolutionProof}`, '_blank')}
                     />
                   ) : (
                     <p className="text-gray-500 text-sm italic py-4">No resolution proof uploaded yet</p>

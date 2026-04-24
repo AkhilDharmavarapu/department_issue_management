@@ -61,7 +61,16 @@ const ReportIssue = ({ onBack }) => {
       formDataToSend.append('priority', formData.priority);
       if (proof) {
         formDataToSend.append('proof', proof);
+        console.log('[REPORT ISSUE] Adding proof file:', { name: proof.name, size: proof.size, type: proof.type });
       }
+
+      console.log('[REPORT ISSUE] Sending FormData with fields:', {
+        title: formData.title,
+        description: formData.description.substring(0, 30) + '...',
+        category: formData.category,
+        priority: formData.priority,
+        hasProof: !!proof,
+      });
 
       await issueAPI.createIssue(formDataToSend);
       setSuccess('✅ Issue reported successfully!');
@@ -108,115 +117,144 @@ const ReportIssue = ({ onBack }) => {
         )}
 
         <div className="bg-white rounded-lg shadow-sm p-8 border border-gray-200">
-          <form onSubmit={handleSubmit} className="space-y-8">
-            <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-3">
-                Issue Title <span className="text-blue-600">*</span>
-              </label>
-              <input
-                type="text"
-                name="title"
-                value={formData.title}
-                onChange={handleChange}
-                placeholder="e.g., Broken projector in room 101"
-                minLength="5"
-                required
-                className="w-full px-5 py-3 bg-gray-50 border border-gray-200 rounded-lg text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
-              />
-              <p className="text-xs text-gray-500 mt-2">Minimum 5 characters</p>
-            </div>
+          <form onSubmit={handleSubmit} className="space-y-6">
+            {/* SECTION 1: BASIC INFO */}
+            <div className="pb-6 border-b border-gray-200">
+              <h3 className="text-lg font-bold text-gray-900 mb-5">Basic Information</h3>
 
-            <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-3">
-                Description <span className="text-blue-600">*</span>
-              </label>
-              <textarea
-                name="description"
-                value={formData.description}
-                onChange={handleChange}
-                placeholder="Describe the issue in detail..."
-                minLength="10"
-                rows="5"
-                required
-                className="w-full px-5 py-3 bg-gray-50 border border-gray-200 rounded-lg text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 transition resize-none"
-              />
-              <p className="text-xs text-gray-500 mt-2">Minimum 10 characters</p>
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-3">
-                  Category <span className="text-blue-600">*</span>
+              {/* 1. Title */}
+              <div className="mb-5">
+                <label className="block text-sm font-semibold text-gray-700 mb-2">
+                  Issue Title <span className="text-red-500">*</span>
                 </label>
-                <select
-                  name="category"
-                  value={formData.category}
+                <input
+                  type="text"
+                  name="title"
+                  value={formData.title}
                   onChange={handleChange}
+                  placeholder="e.g., Broken projector in classroom"
+                  minLength="5"
                   required
-                  className="w-full px-5 py-3 bg-gray-50 border border-gray-200 rounded-lg text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
-                >
-                  <option value="">Select Category</option>
-                  <option value="infrastructure">Infrastructure</option>
-                  <option value="equipment">Equipment</option>
-                  <option value="utilities">Utilities</option>
-                  <option value="other">Other</option>
-                </select>
+                  className="w-full px-4 py-3 bg-white border border-gray-300 rounded-lg text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
+                />
               </div>
 
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-3">
-                  Priority <span className="text-blue-600">*</span>
-                </label>
-                <select
-                  name="priority"
-                  value={formData.priority}
-                  onChange={handleChange}
-                  className="w-full px-5 py-3 bg-gray-50 border border-gray-200 rounded-lg text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
-                >
-                  <option value="Minor">Minor</option>
-                  <option value="Normal">Normal</option>
-                  <option value="Important">Important</option>
-                  <option value="Urgent">Urgent</option>
-                </select>
-              </div>
-            </div>
-
-            <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-3">
-                Proof Image (Optional) 📷
-              </label>
-              <input
-                type="file"
-                accept="image/*"
-                onChange={handleProofChange}
-                className="w-full px-5 py-3 bg-gray-50 border border-gray-200 rounded-lg text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 transition file:mr-3 file:py-2 file:bg-blue-600 file:text-white file:rounded file:border-0 file:cursor-pointer hover:file:bg-blue-700"
-              />
-              <p className="text-xs text-gray-500 mt-2">Upload a photo to prove the issue (Max 5MB, JPEG/PNG/GIF)</p>
-              {proofPreview && (
-                <div className="mt-4">
-                  <p className="text-xs text-gray-700 font-semibold mb-2">Preview:</p>
-                  <img src={proofPreview} alt="Proof preview" className="w-32 h-32 object-cover rounded-lg border border-gray-300" />
+              {/* 2. Category & 3. Priority */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+                {/* Category */}
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">
+                    Category <span className="text-red-500">*</span>
+                  </label>
+                  <select
+                    name="category"
+                    value={formData.category}
+                    onChange={handleChange}
+                    required
+                    className="w-full px-4 py-3 bg-white border border-gray-300 rounded-lg text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
+                  >
+                    <option value="">Select Category</option>
+                    <option value="infrastructure">Infrastructure</option>
+                    <option value="equipment">Equipment</option>
+                    <option value="utilities">Utilities</option>
+                    <option value="other">Other</option>
+                  </select>
                 </div>
-              )}
+
+                {/* Priority */}
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">
+                    Priority <span className="text-red-500">*</span>
+                  </label>
+                  <select
+                    name="priority"
+                    value={formData.priority}
+                    onChange={handleChange}
+                    className="w-full px-4 py-3 bg-white border border-gray-300 rounded-lg text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
+                  >
+                    <option value="Minor">Minor</option>
+                    <option value="Normal">Normal</option>
+                    <option value="Important">Important</option>
+                    <option value="Urgent">Urgent</option>
+                  </select>
+                </div>
+              </div>
             </div>
 
-            <div className="bg-blue-50 border border-blue-200 rounded-lg p-6">
-              <p className="text-blue-900 font-semibold">
-                📍 Your Classroom
-              </p>
-              <p className="text-blue-800 mt-2 text-lg font-medium">
+            {/* SECTION 2: DETAILS */}
+            <div className="pb-6 border-b border-gray-200">
+              <h3 className="text-lg font-bold text-gray-900 mb-5">Details</h3>
+
+              {/* 4. Description */}
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">
+                  Description <span className="text-red-500">*</span>
+                </label>
+                <textarea
+                  name="description"
+                  value={formData.description}
+                  onChange={handleChange}
+                  placeholder="Explain the issue clearly (what happened, where, when...)"
+                  minLength="10"
+                  rows="7"
+                  required
+                  className="w-full px-4 py-3 bg-white border border-gray-300 rounded-lg text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 transition resize-none"
+                />
+              </div>
+            </div>
+
+            {/* SECTION 3: PROOF */}
+            <div className="pb-6 border-b border-gray-200">
+              <h3 className="text-lg font-bold text-gray-900 mb-5">Upload Proof</h3>
+
+              {/* 5. File Upload */}
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">
+                  Upload Proof <span className="text-gray-500 font-normal">(optional)</span>
+                </label>
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={handleProofChange}
+                  className="w-full px-4 py-3 bg-white border border-gray-300 rounded-lg text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 transition file:mr-3 file:py-2 file:px-3 file:bg-blue-600 file:text-white file:rounded file:border-0 file:cursor-pointer file:font-medium hover:file:bg-blue-700 transition"
+                />
+                <p className="text-xs text-gray-500 mt-2">
+                  {proof ? `📎 Selected: ${proof.name}` : 'Images only (JPG, PNG, GIF) • Max 5MB'}
+                </p>
+
+                {/* Image Preview */}
+                {proofPreview && (
+                  <div className="mt-4">
+                    <p className="text-xs font-semibold text-gray-700 mb-2">Preview:</p>
+                    <div className="w-40 h-40 border-2 border-blue-200 rounded-lg overflow-hidden bg-gray-50 flex items-center justify-center">
+                      <img 
+                        src={proofPreview} 
+                        alt="Proof preview" 
+                        className="w-full h-full object-cover"
+                      />
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Classroom Information */}
+            <div className="bg-blue-50 border-l-4 border-blue-600 rounded-lg p-5">
+              <p className="text-sm font-semibold text-blue-900 mb-1">📍 Reporting for Classroom:</p>
+              <p className="text-blue-900 font-medium">
                 {profile?.classroomId
-                  ? `${profile.classroomId.department} - Year ${profile.classroomId.year} - Section ${profile.classroomId.section}`
+                  ? `${profile.classroomId.department} • Year ${profile.classroomId.year} • Section ${profile.classroomId.section}`
                   : 'No classroom assigned — contact your admin'}
               </p>
             </div>
 
+            {/* Submit Button */}
             <button
               type="submit"
               disabled={loading}
-              className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white font-semibold py-3 px-6 rounded-lg transition-all duration-300 disabled:cursor-not-allowed"
+              className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-white font-semibold py-3 px-6 rounded-lg transition-all duration-300 shadow-sm hover:shadow-md"
             >
-              {loading ? '⏳ Submitting...' : '🚀 Submit Issue'}
+              {loading ? '⏳ Submitting...' : '🚀 Submit Issue Report'}
             </button>
           </form>
         </div>

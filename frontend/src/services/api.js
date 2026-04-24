@@ -14,6 +14,25 @@ const apiClient = axios.create({
 });
 
 /**
+ * Remove Content-Type header for FormData requests
+ * Let axios automatically set the correct multipart/form-data header with boundary
+ */
+apiClient.interceptors.request.use(
+  (config) => {
+    // If sending FormData, remove the default Content-Type header
+    // so axios can set it to multipart/form-data with correct boundary
+    if (config.data instanceof FormData) {
+      delete config.headers['Content-Type'];
+      console.log('[API] FormData detected - removed Content-Type header for proper multipart handling');
+    }
+    return config;
+  },
+  (error) => {
+    return Promise.reject(error);
+  }
+);
+
+/**
  * Interceptor to add JWT token to all requests
  */
 apiClient.interceptors.request.use(
@@ -26,6 +45,12 @@ apiClient.interceptors.request.use(
     } else {
       console.log('[API] Request to:', config.url, '- No token available');
     }
+    
+    // Log FormData uploads for debugging
+    if (config.data instanceof FormData) {
+      console.log('[API] FormData upload to:', config.url, '- Content-Type will be multipart/form-data');
+    }
+    
     return config;
   },
   (error) => {
@@ -86,6 +111,10 @@ export const authAPI = {
     apiClient.post('/auth/register', data),
   getMe: () =>
     apiClient.get('/auth/me'),
+  changePassword: (currentPassword, newPassword, confirmPassword) =>
+    apiClient.post('/auth/change-password', { currentPassword, newPassword, confirmPassword }),
+  resetPassword: (userId) =>
+    apiClient.post('/auth/reset-password', { userId }),
 };
 
 // ==================== User Management APIs ====================
@@ -108,6 +137,8 @@ export const classroomAPI = {
     apiClient.get('/classrooms/my'),
   getClassroomById: (id) =>
     apiClient.get(`/classrooms/${id}`),
+  getClassroomStudents: (id) =>
+    apiClient.get(`/classrooms/${id}/students`),
   updateClassroom: (id, data) =>
     apiClient.put(`/classrooms/${id}`, data),
   deleteClassroom: (id) =>

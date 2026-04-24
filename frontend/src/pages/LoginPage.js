@@ -30,14 +30,19 @@ const LoginPage = () => {
       const result = await login(formData.email, formData.password);
 
       if (result.success) {
-        // Redirect based on role
-        const role = result.user.role;
-        if (role === 'admin' || role === 'hod') {
-          navigate('/admin/dashboard');
-        } else if (role === 'faculty') {
-          navigate('/faculty/dashboard');
-        } else if (role === 'student') {
-          navigate('/student/dashboard');
+        // Check if user is logging in for the first time
+        if (result.isFirstLogin) {
+          navigate('/change-password');
+        } else {
+          // Redirect based on role
+          const role = result.user.role;
+          if (role === 'admin' || role === 'hod') {
+            navigate('/admin/dashboard');
+          } else if (role === 'faculty') {
+            navigate('/faculty/dashboard');
+          } else if (role === 'student') {
+            navigate('/student/dashboard');
+          }
         }
       } else {
         setError(result.error);

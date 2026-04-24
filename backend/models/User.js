@@ -19,9 +19,14 @@ const userSchema = new mongoose.Schema(
         'Please provide a valid email',
       ],
     },
-    rollNumber: {
+    registrationNumber: {
       type: String,
       sparse: true, // Sparse index allows null for non-student users
+      unique: true,
+    },
+    teacherId: {
+      type: String,
+      sparse: true, // Sparse index allows null for non-faculty/admin users
       unique: true,
     },
     passwordHash: {
@@ -42,6 +47,10 @@ const userSchema = new mongoose.Schema(
       default: null,
     },
     isActive: {
+      type: Boolean,
+      default: true,
+    },
+    isFirstLogin: {
       type: Boolean,
       default: true,
     },

@@ -5,6 +5,7 @@ const {
   getAllClassrooms,
   getMyClassrooms,
   getClassroomById,
+  getClassroomStudents,
   updateClassroom,
   deleteClassroom,
   getAvailableRooms,
@@ -38,6 +39,14 @@ router.get('/my', authMiddleware, getMyClassrooms);
  * Admin only
  */
 router.get('/available-rooms/:block', authMiddleware, adminOnly, getAvailableRooms);
+
+/**
+ * GET /api/classrooms/:id/students
+ * Get ONLY students assigned to a specific classroom
+ * Admin only
+ * MUST come before /:id route to avoid catching it
+ */
+router.get('/:id/students', authMiddleware, adminOnly, getClassroomStudents);
 
 /**
  * GET /api/classrooms/:id

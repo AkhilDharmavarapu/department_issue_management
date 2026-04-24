@@ -9,6 +9,11 @@ const User = require('../models/User');
  */
 exports.createIssue = async (req, res, next) => {
   try {
+    // DEBUG: Log incoming request
+    console.log('[ISSUE CREATE] Received request');
+    console.log('[ISSUE CREATE] FILE:', req.file ? { fieldname: req.file.fieldname, filename: req.file.filename, path: req.file.path, size: req.file.size } : 'NO FILE');
+    console.log('[ISSUE CREATE] BODY:', { title: req.body.title, description: req.body.description?.substring(0, 50) + '...', category: req.body.category, priority: req.body.priority });
+    
     const { title, description, category, priority } = req.body;
     const { userId } = req.user;
 
@@ -30,7 +35,9 @@ exports.createIssue = async (req, res, next) => {
     }
 
     // Store file path if proof was uploaded
-    const reportProof = req.file ? req.file.filename : null;
+    // Use relative path format: uploads/issues/filename.jpg
+    const reportProof = req.file ? `uploads/issues/${req.file.filename}` : null;
+    console.log('[ISSUE CREATE] reportProof path:', reportProof);
 
     const issue = await Issue.create({
       title,
@@ -43,7 +50,11 @@ exports.createIssue = async (req, res, next) => {
       reportProof,
     });
 
+    console.log('[ISSUE CREATE] Issue saved to DB:', { _id: issue._id, reportProof: issue.reportProof });
+
     await issue.populate(['classroomId', 'reportedBy', 'assignedTo']);
+
+    console.log('[ISSUE CREATE] Issue populated and returning to frontend');
 
     res.status(201).json({
       success: true,
@@ -250,8 +261,8 @@ exports.uploadResolutionProof = async (req, res, next) => {
       });
     }
 
-    // Store file path
-    issue.resolutionProof = req.file.filename;
+    // Store file path with relative path format: uploads/issues/filename.jpg
+    issue.resolutionProof = `uploads/issues/${req.file.filename}`;
     await issue.save();
     await issue.populate(['classroomId', 'reportedBy', 'assignedTo', 'comments.user']);
 

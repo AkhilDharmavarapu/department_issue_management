@@ -9,30 +9,40 @@ const UserManagement = ({ onBack }) => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const [updateLoading, setUpdateLoading] = useState(false);
   const [filterRole, setFilterRole] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
   const [showForm, setShowForm] = useState(false);
   const [showEditForm, setShowEditForm] = useState(false);
   const [editingUserId, setEditingUserId] = useState(null);
   const [hodUser, setHodUser] = useState(null);
+  // Create form state - role-based
   const [formData, setFormData] = useState({
+    role: '', // Must select role first
     name: '',
     email: '',
     password: '',
-    role: 'student',
-    rollNumber: '',
-    classroomId: '',
+    // Student fields
     courseType: 'BTech',
     specialization: '',
+    registrationNumber: '',
+    classroomId: '',
+    // Faculty/Admin fields
+    teacherId: '',
   });
+
+  // Edit form state - role-based
   const [editFormData, setEditFormData] = useState({
+    role: '', // Will be set when editing
     name: '',
     email: '',
-    role: 'student',
-    rollNumber: '',
-    classroomId: '',
+    // Student fields
     courseType: 'BTech',
     specialization: '',
+    registrationNumber: '',
+    classroomId: '',
+    // Faculty/Admin fields
+    teacherId: '',
   });
 
   useEffect(() => {
@@ -74,18 +84,80 @@ const UserManagement = ({ onBack }) => {
     fetchUsers();
   }, [filterRole, searchQuery]);
 
+  // Handle role change - reset form completely
+  const handleRoleChange = (newRole) => {
+    setFormData({
+      role: newRole,
+      name: '',
+      email: '',
+      password: '',
+      courseType: 'BTech',
+      specialization: '',
+      registrationNumber: '',
+      classroomId: '',
+      teacherId: '',
+    });
+  };
+
+  // TASK 5: Handle role change in edit form - reset unrelated fields
+  const handleEditRoleChange = (newRole) => {
+    console.log('[ROLE CHANGE] Edit form: switching from', editFormData.role, 'to', newRole);
+    const newFormData = {
+      ...editFormData,
+      role: newRole,
+    };
+
+    // Reset role-specific fields when role changes
+    if (newRole === 'student') {
+      // Keep student fields, remove faculty/admin fields
+      newFormData.teacherId = '';
+    } else if (newRole === 'faculty' || newRole === 'admin') {
+      // Keep faculty/admin fields, remove student fields
+      newFormData.registrationNumber = '';
+      newFormData.classroomId = '';
+      newFormData.courseType = 'BTech';
+      newFormData.specialization = '';
+    }
+
+    setEditFormData(newFormData);
+  };
+
   const handleCreateUser = async (e) => {
     e.preventDefault();
     setError('');
     setSuccess('');
     try {
       const payload = { ...formData };
-      if (!payload.rollNumber) delete payload.rollNumber;
-      if (!payload.classroomId) delete payload.classroomId;
+      
+      // Only include role-relevant fields
+      if (formData.role !== 'student') {
+        delete payload.courseType;
+        delete payload.specialization;
+        delete payload.registrationNumber;
+        delete payload.classroomId;
+      }
+      if (formData.role === 'student') {
+        delete payload.teacherId;
+      }
+      if (formData.role !== 'faculty' && formData.role !== 'admin') {
+        delete payload.teacherId;
+      }
 
       await authAPI.register(payload);
       setSuccess('User created successfully');
-      setFormData({ name: '', email: '', password: '', role: 'student', rollNumber: '', classroomId: '', courseType: 'BTech', specialization: '' });
+      
+      // Reset form completely
+      setFormData({
+        role: '',
+        name: '',
+        email: '',
+        password: '',
+        courseType: 'BTech',
+        specialization: '',
+        registrationNumber: '',
+        classroomId: '',
+        teacherId: '',
+      });
       setShowForm(false);
       fetchUsers();
       setTimeout(() => setSuccess(''), 3000);
@@ -103,23 +175,41 @@ const UserManagement = ({ onBack }) => {
     }
   };
 
+  const handleResetPassword = async (userId, userName) => {
+    const confirmReset = window.confirm(
+      `Are you sure you want to reset ${userName}'s password to the default value? They will need to change it on their next login.`
+    );
+
+    if (!confirmReset) return;
+
+    try {
+      setError('');
+      setSuccess('');
+      const response = await authAPI.resetPassword(userId);
+      setSuccess(`Password reset successfully for ${userName}. Default password: ${response.data.data.defaultPassword}`);
+      fetchUsers();
+      setTimeout(() => setSuccess(''), 5000);
+    } catch (err) {
+      setError(err.response?.data?.message || 'Failed to reset password');
+      setTimeout(() => setError(''), 5000);
+    }
+  };
+
   const handleOpenEditForm = (user) => {
-    // Clear any previous edit state first
     setShowEditForm(false);
     setEditingUserId(null);
-    setEditFormData({ name: '', email: '', role: 'student', rollNumber: '', classroomId: '', courseType: 'BTech', specialization: '' });
     
-    // Then set new user data
     setTimeout(() => {
       setEditingUserId(user._id);
       setEditFormData({
+        role: user.role,
         name: user.name,
         email: user.email,
-        role: user.role,
-        rollNumber: user.rollNumber || '',
-        classroomId: user.classroomId ? user.classroomId._id : '',
         courseType: user.courseType || 'BTech',
         specialization: user.specialization || '',
+        registrationNumber: user.registrationNumber || '',
+        classroomId: user.classroomId ? user.classroomId._id : '',
+        teacherId: user.teacherId || '',
       });
       setShowEditForm(true);
     }, 0);
@@ -129,27 +219,84 @@ const UserManagement = ({ onBack }) => {
     e.preventDefault();
     setError('');
     setSuccess('');
-    try {
-      const payload = { ...editFormData };
-      if (!payload.rollNumber) delete payload.rollNumber;
-      if (!payload.classroomId) delete payload.classroomId;
+    setUpdateLoading(true);
 
-      await userAPI.updateUser(editingUserId, payload);
+    try {
+      // TASK 5: Clean payload - only send non-empty fields
+      const payload = {};
       
-      // Close form and reset state IMMEDIATELY before refreshing
-      setShowEditForm(false);
-      setEditingUserId(null);
-      setEditFormData({ name: '', email: '', role: 'student', rollNumber: '', classroomId: '', courseType: 'BTech', specialization: '' });
+      // Always send these if they have values
+      if (editFormData.name && editFormData.name.trim()) payload.name = editFormData.name;
+      if (editFormData.email && editFormData.email.trim()) payload.email = editFormData.email;
       
-      // Then refresh the user list
-      await fetchUsers();
-      
-      // Show success message
-      setSuccess('User updated successfully');
-      setTimeout(() => setSuccess(''), 3000);
+      // Only send role-relevant fields
+      if (editFormData.role === 'student') {
+        payload.role = editFormData.role;
+        if (editFormData.registrationNumber && editFormData.registrationNumber.trim()) {
+          payload.registrationNumber = editFormData.registrationNumber;
+        }
+        if (editFormData.classroomId && editFormData.classroomId.trim()) {
+          payload.classroomId = editFormData.classroomId;
+        }
+        if (editFormData.courseType) payload.courseType = editFormData.courseType;
+        if (editFormData.specialization && editFormData.specialization.trim()) {
+          payload.specialization = editFormData.specialization;
+        }
+      } else if (editFormData.role === 'faculty' || editFormData.role === 'admin') {
+        payload.role = editFormData.role;
+        if (editFormData.teacherId && editFormData.teacherId.trim()) {
+          payload.teacherId = editFormData.teacherId;
+        }
+      }
+
+      console.log('[UPDATE USER] Frontend Payload:', payload);
+
+      // TASK 1: Wrap API call with try-catch and detailed error handling
+      try {
+        const response = await userAPI.updateUser(editingUserId, payload);
+        console.log('[UPDATE USER] API SUCCESS:', response.data);
+        
+        setShowEditForm(false);
+        setEditingUserId(null);
+        setEditFormData({
+          role: '',
+          name: '',
+          email: '',
+          courseType: 'BTech',
+          specialization: '',
+          registrationNumber: '',
+          classroomId: '',
+          teacherId: '',
+        });
+        
+        await fetchUsers();
+        
+        // TASK 7: Show success message
+        setSuccess('✅ User updated successfully');
+        setTimeout(() => setSuccess(''), 4000);
+      } catch (apiError) {
+        // TASK 1: Show detailed error to user
+        const errorMessage = apiError.response?.data?.message || 
+                            apiError.response?.data?.error ||
+                            apiError.message || 
+                            'Failed to update user';
+        
+        console.error('[UPDATE USER] API ERROR:', {
+          status: apiError.response?.status,
+          message: errorMessage,
+          fullError: apiError.response?.data
+        });
+        
+        setError(`❌ Error: ${errorMessage}`);
+        setTimeout(() => setError(''), 5000);
+      }
     } catch (err) {
-      setError(err.response?.data?.message || 'Failed to update user');
-      setTimeout(() => setError(''), 3000);
+      console.error('[UPDATE USER] UNEXPECTED ERROR:', err);
+      setError('❌ Unexpected error occurred while updating user');
+      setTimeout(() => setError(''), 5000);
+    } finally {
+      // TASK 6: Always reset loading state
+      setUpdateLoading(false);
     }
   };
 
@@ -194,119 +341,175 @@ const UserManagement = ({ onBack }) => {
         </div>
       )}
 
-      {/* Create User Form */}
+      {/* Create User Form - Role-Based Architecture */}
       {showForm && (
         <div className="bg-white rounded-lg shadow-md p-8 mb-8 border border-gray-200">
           <h2 className="text-2xl font-bold text-gray-900 mb-6">Create New User</h2>
           <form onSubmit={handleCreateUser} className="space-y-6">
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-              <div>
-                <label className="block text-sm font-semibold text-gray-900 mb-2">Name *</label>
-                <input
-                  type="text"
-                  value={formData.name}
-                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                  required
-                  placeholder="Full name"
-                  className="w-full px-4 py-3 bg-white border border-gray-300 rounded-lg text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-semibold text-gray-900 mb-2">Email *</label>
-                <input
-                  type="email"
-                  value={formData.email}
-                  onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                  required
-                  placeholder="user@college.edu"
-                  className="w-full px-4 py-3 bg-white border border-gray-300 rounded-lg text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-semibold text-gray-900 mb-2">Password *</label>
-                <input
-                  type="password"
-                  value={formData.password}
-                  onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                  required
-                  minLength="6"
-                  placeholder="Min 6 characters"
-                  className="w-full px-4 py-3 bg-white border border-gray-300 rounded-lg text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-semibold text-gray-900 mb-2">Role *</label>
-                <select
-                  value={formData.role}
-                  onChange={(e) => setFormData({ ...formData, role: e.target.value })}
-                  className="w-full px-4 py-3 bg-white border border-gray-300 rounded-lg text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                >
-                  <option value="student">Student</option>
-                  <option value="faculty">Faculty</option>
-                  <option value="admin">Admin</option>
-                </select>
-              </div>
-              <div>
-                <label className="block text-sm font-semibold text-gray-900 mb-2">Roll Number</label>
-                <input
-                  type="text"
-                  value={formData.rollNumber}
-                  onChange={(e) => setFormData({ ...formData, rollNumber: e.target.value })}
-                  placeholder="e.g., CS2021001"
-                  className="w-full px-4 py-3 bg-white border border-gray-300 rounded-lg text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-semibold text-gray-900 mb-2">Classroom</label>
-                <select
-                  value={formData.classroomId}
-                  onChange={(e) => setFormData({ ...formData, classroomId: e.target.value })}
-                  className="w-full px-4 py-3 bg-white border border-gray-300 rounded-lg text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                >
-                  <option value="">No Classroom</option>
-                  {classrooms.map(c => (
-                    <option key={c._id} value={c._id}>
-                      {c.department} - Y{c.year} S{c.section}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              {formData.role === 'student' && (
-              <div>
-                <label className="block text-sm font-semibold text-gray-900 mb-2">Course Type</label>
-                <select
-                  value={formData.courseType}
-                  onChange={(e) => setFormData({ ...formData, courseType: e.target.value })}
-                  className="w-full px-4 py-3 bg-white border border-gray-300 rounded-lg text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                >
-                  <option value="BTech">BTech</option>
-                  <option value="MTech">MTech</option>
-                </select>
-              </div>
-              )}
-              {formData.role === 'student' && formData.courseType === 'MTech' && (
-                <div>
-                  <label className="block text-sm font-semibold text-gray-900 mb-2">Specialization *</label>
-                  <select
-                    value={formData.specialization}
-                    onChange={(e) => setFormData({ ...formData, specialization: e.target.value })}
-                    required={formData.courseType === 'MTech'}
-                    className="w-full px-4 py-3 bg-white border border-gray-300 rounded-lg text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  >
-                    <option value="">Select Specialization</option>
-                    <option value="Artificial Intelligence and Machine Learning">Artificial Intelligence and Machine Learning</option>
-                    <option value="Computer Science & Technology">Computer Science & Technology</option>
-                    <option value="Computer Networks and Information Security">Computer Networks and Information Security</option>
-                  </select>
-                </div>
-              )}
+            {/* STEP 1: Role Selection - Always First */}
+            <div>
+              <label className="block text-sm font-semibold text-gray-900 mb-2">Role * (Select First)</label>
+              <select
+                value={formData.role}
+                onChange={(e) => handleRoleChange(e.target.value)}
+                className="w-full px-4 py-3 bg-white border border-gray-300 rounded-lg text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                <option value="">-- Select Role --</option>
+                <option value="student">Student</option>
+                <option value="faculty">Faculty</option>
+                <option value="admin">Admin</option>
+              </select>
             </div>
-            <button
-              type="submit"
-              className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-6 rounded-lg transition-all duration-300"
-            >
-              Create User
-            </button>
+
+            {/* Only show fields if role is selected */}
+            {formData.role && (
+              <div className="space-y-6 pt-4 border-t border-gray-200">
+                {/* Common Fields for All Roles */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-900 mb-2">Name *</label>
+                    <input
+                      type="text"
+                      value={formData.name}
+                      onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                      required
+                      placeholder="Full name"
+                      className="w-full px-4 py-3 bg-white border border-gray-300 rounded-lg text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-900 mb-2">Email *</label>
+                    <input
+                      type="email"
+                      value={formData.email}
+                      onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                      required
+                      placeholder="user@college.edu"
+                      className="w-full px-4 py-3 bg-white border border-gray-300 rounded-lg text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-900 mb-2">Password *</label>
+                    <input
+                      type="password"
+                      value={formData.password}
+                      onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                      required
+                      minLength="6"
+                      placeholder="Min 6 characters"
+                      className="w-full px-4 py-3 bg-white border border-gray-300 rounded-lg text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
+                </div>
+
+                {/* STUDENT-SPECIFIC FIELDS */}
+                {formData.role === 'student' && (
+                  <div className="space-y-6 p-4 bg-green-50 rounded-lg border border-green-200">
+                    <h3 className="text-sm font-semibold text-green-900">Student Information</h3>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                      <div>
+                        <label className="block text-sm font-semibold text-gray-900 mb-2">Registration Number *</label>
+                        <input
+                          type="text"
+                          value={formData.registrationNumber}
+                          onChange={(e) => setFormData({ ...formData, registrationNumber: e.target.value })}
+                          required
+                          placeholder="e.g., CS2021001"
+                          className="w-full px-4 py-3 bg-white border border-gray-300 rounded-lg text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-semibold text-gray-900 mb-2">Course Type *</label>
+                        <select
+                          value={formData.courseType}
+                          onChange={(e) => setFormData({ ...formData, courseType: e.target.value })}
+                          className="w-full px-4 py-3 bg-white border border-gray-300 rounded-lg text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        >
+                          <option value="BTech">BTech</option>
+                          <option value="MTech">MTech</option>
+                        </select>
+                      </div>
+                      {formData.courseType === 'MTech' && (
+                        <div>
+                          <label className="block text-sm font-semibold text-gray-900 mb-2">Specialization *</label>
+                          <select
+                            value={formData.specialization}
+                            onChange={(e) => setFormData({ ...formData, specialization: e.target.value })}
+                            required
+                            className="w-full px-4 py-3 bg-white border border-gray-300 rounded-lg text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                          >
+                            <option value="">Select Specialization</option>
+                            <option value="Artificial Intelligence and Machine Learning">Artificial Intelligence and Machine Learning</option>
+                            <option value="Computer Science & Technology">Computer Science & Technology</option>
+                            <option value="Computer Networks and Information Security">Computer Networks and Information Security</option>
+                          </select>
+                        </div>
+                      )}
+                      <div className="sm:col-span-2">
+                        <label className="block text-sm font-semibold text-gray-900 mb-2">Classroom *</label>
+                        <select
+                          value={formData.classroomId}
+                          onChange={(e) => setFormData({ ...formData, classroomId: e.target.value })}
+                          required
+                          className="w-full px-4 py-3 bg-white border border-gray-300 rounded-lg text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        >
+                          <option value="">-- Select Classroom --</option>
+                          {classrooms.map(c => (
+                            <option key={c._id} value={c._id}>
+                              {c.department} - Year {c.year} Section {c.section}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* FACULTY-SPECIFIC FIELDS */}
+                {formData.role === 'faculty' && (
+                  <div className="space-y-6 p-4 bg-blue-50 rounded-lg border border-blue-200">
+                    <h3 className="text-sm font-semibold text-blue-900">Faculty Information</h3>
+                    <div>
+                      <label className="block text-sm font-semibold text-gray-900 mb-2">Teacher ID *</label>
+                      <input
+                        type="text"
+                        value={formData.teacherId}
+                        onChange={(e) => setFormData({ ...formData, teacherId: e.target.value })}
+                        required
+                        placeholder="e.g., FACULTY001"
+                        className="w-full px-4 py-3 bg-white border border-gray-300 rounded-lg text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      />
+                    </div>
+                  </div>
+                )}
+
+                {/* ADMIN-SPECIFIC FIELDS */}
+                {formData.role === 'admin' && (
+                  <div className="space-y-6 p-4 bg-purple-50 rounded-lg border border-purple-200">
+                    <h3 className="text-sm font-semibold text-purple-900">Admin Information</h3>
+                    <div>
+                      <label className="block text-sm font-semibold text-gray-900 mb-2">Teacher ID / Admin ID *</label>
+                      <input
+                        type="text"
+                        value={formData.teacherId}
+                        onChange={(e) => setFormData({ ...formData, teacherId: e.target.value })}
+                        required
+                        placeholder="e.g., ADMIN001"
+                        className="w-full px-4 py-3 bg-white border border-gray-300 rounded-lg text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      />
+                    </div>
+                  </div>
+                )}
+
+                {/* Submit Button */}
+                <button
+                  type="submit"
+                  className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-6 rounded-lg transition-all duration-300"
+                >
+                  Create User
+                </button>
+              </div>
+            )}
           </form>
         </div>
       )}
@@ -392,11 +595,11 @@ const UserManagement = ({ onBack }) => {
                         </span>
                       </div>
                       <div>
-                        <p className="text-gray-500 text-xs font-semibold">Classroom</p>
+                        <p className="text-gray-500 text-xs font-semibold">
+                          {user.role === 'student' ? 'Reg. Number' : 'Teacher ID'}
+                        </p>
                         <p className="text-gray-900 font-medium">
-                          {user.classroomId
-                            ? `${user.classroomId.department} - Year ${user.classroomId.year} - Section ${user.classroomId.section}`
-                            : '—'}
+                          {user.registrationNumber || user.teacherId || '—'}
                         </p>
                       </div>
                       <div>
@@ -410,8 +613,13 @@ const UserManagement = ({ onBack }) => {
                         </span>
                       </div>
                     </div>
+                    {user.role === 'student' && user.classroomId && (
+                      <div className="mt-3 text-sm text-gray-600">
+                        <span className="font-semibold">Classroom:</span> {user.classroomId.department} - Year {user.classroomId.year} Section {user.classroomId.section}
+                      </div>
+                    )}
                   </div>
-                  <div className="flex gap-2">
+                  <div className="flex gap-2 flex-wrap">
                     {user.role === 'hod' ? (
                       <button
                         onClick={() => handleOpenEditForm(user)}
@@ -428,6 +636,12 @@ const UserManagement = ({ onBack }) => {
                           ✎ Edit
                         </button>
                         <button
+                          onClick={() => handleResetPassword(user._id, user.name)}
+                          className="px-4 py-2 rounded-lg font-semibold shadow-sm hover:shadow-md transition-all duration-300 bg-orange-500 hover:bg-orange-600 text-white"
+                        >
+                          🔄 Reset Password
+                        </button>
+                        <button
                           onClick={() => handleToggleActive(user._id, user.isActive)}
                           className={`px-4 py-2 rounded-lg font-semibold shadow-sm hover:shadow-md transition-all duration-300 ${
                             user.isActive
@@ -442,15 +656,15 @@ const UserManagement = ({ onBack }) => {
                   </div>
                 </div>
 
-                {/* Inline Edit Form - Shows under selected user */}
-                {editingUserId === user._id && (
+                {/* Inline Edit Form - Role-Based */}
+                {editingUserId === user._id && showEditForm && (
                   <div className="mt-6 pt-6 border-t border-gray-300 bg-gray-50 p-6 rounded-lg">
                     <h3 className="text-lg font-bold text-gray-900 mb-4">
                       {user.role === 'hod' ? 'Edit HOD Information' : 'Edit User Details'}
                     </h3>
                     <form onSubmit={handleUpdateUser} className="space-y-4">
                       {user.role === 'hod' ? (
-                        // Limited form for HOD (name and email only)
+                        // Limited form for HOD
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                           <div>
                             <label className="block text-sm font-semibold text-gray-900 mb-2">Name *</label>
@@ -476,112 +690,157 @@ const UserManagement = ({ onBack }) => {
                           </div>
                         </div>
                       ) : (
-                        // Full form for non-HOD users
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                          <div>
-                            <label className="block text-sm font-semibold text-gray-900 mb-2">Name *</label>
-                            <input
-                              type="text"
-                              value={editFormData.name}
-                              onChange={(e) => setEditFormData({ ...editFormData, name: e.target.value })}
-                              required
-                              placeholder="Full name"
-                              className="w-full px-4 py-2 bg-white border border-gray-300 rounded-lg text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                            />
-                          </div>
-                          <div>
-                            <label className="block text-sm font-semibold text-gray-900 mb-2">Email *</label>
-                            <input
-                              type="email"
-                              value={editFormData.email}
-                              onChange={(e) => setEditFormData({ ...editFormData, email: e.target.value })}
-                              required
-                              placeholder="user@college.edu"
-                              className="w-full px-4 py-2 bg-white border border-gray-300 rounded-lg text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                            />
-                          </div>
-                          <div>
-                            <label className="block text-sm font-semibold text-gray-900 mb-2">Role *</label>
+                        // Full role-based edit form for non-HOD
+                        <div className="space-y-4">
+                          {/* TASK 5: Show role with option to change (triggers field reset) */}
+                          <div className="p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+                            <p className="text-xs font-semibold text-yellow-900 mb-2">⚠️ Warning: Changing role will remove unrelated fields</p>
                             <select
                               value={editFormData.role}
-                              onChange={(e) => setEditFormData({ ...editFormData, role: e.target.value })}
-                              className="w-full px-4 py-2 bg-white border border-gray-300 rounded-lg text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                              onChange={(e) => {
+                                if (e.target.value !== editFormData.role) {
+                                  handleEditRoleChange(e.target.value);
+                                }
+                              }}
+                              className="w-full px-4 py-2 bg-white border border-gray-300 rounded-lg text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 font-semibold"
                             >
                               <option value="student">Student</option>
                               <option value="faculty">Faculty</option>
                               <option value="admin">Admin</option>
                             </select>
                           </div>
-                          <div>
-                            <label className="block text-sm font-semibold text-gray-900 mb-2">Roll Number</label>
-                            <input
-                              type="text"
-                              value={editFormData.rollNumber}
-                              onChange={(e) => setEditFormData({ ...editFormData, rollNumber: e.target.value })}
-                              placeholder="e.g., CS2021001"
-                              className="w-full px-4 py-2 bg-white border border-gray-300 rounded-lg text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                            />
-                          </div>
-                          <div className="sm:col-span-2">
-                            <label className="block text-sm font-semibold text-gray-900 mb-2">Classroom</label>
-                            <select
-                              value={editFormData.classroomId}
-                              onChange={(e) => setEditFormData({ ...editFormData, classroomId: e.target.value })}
-                              className="w-full px-4 py-2 bg-white border border-gray-300 rounded-lg text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                            >
-                              <option value="">No Classroom</option>
-                              {classrooms.map(c => (
-                                <option key={c._id} value={c._id}>
-                                  {c.department} - Y{c.year} S{c.section}
-                                </option>
-                              ))}
-                            </select>
-                          </div>
-                          {editFormData.role === 'student' && (
-                          <div>
-                            <label className="block text-sm font-semibold text-gray-900 mb-2">Course Type</label>
-                            <select
-                              value={editFormData.courseType}
-                              onChange={(e) => setEditFormData({ ...editFormData, courseType: e.target.value })}
-                              className="w-full px-4 py-2 bg-white border border-gray-300 rounded-lg text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                            >
-                              <option value="BTech">BTech</option>
-                              <option value="MTech">MTech</option>
-                            </select>
-                          </div>
-                          )}
-                          {editFormData.role === 'student' && editFormData.courseType === 'MTech' && (
+
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                             <div>
-                              <label className="block text-sm font-semibold text-gray-900 mb-2">Specialization *</label>
-                              <select
-                                value={editFormData.specialization}
-                                onChange={(e) => setEditFormData({ ...editFormData, specialization: e.target.value })}
-                                required={editFormData.courseType === 'MTech'}
-                                className="w-full px-4 py-2 bg-white border border-gray-300 rounded-lg text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                              >
-                                <option value="">Select Specialization</option>
-                                <option value="Artificial Intelligence and Machine Learning">Artificial Intelligence and Machine Learning</option>
-                                <option value="Computer Science & Technology">Computer Science & Technology</option>
-                                <option value="Computer Networks and Information Security">Computer Networks and Information Security</option>
-                              </select>
+                              <label className="block text-sm font-semibold text-gray-900 mb-2">Name *</label>
+                              <input
+                                type="text"
+                                value={editFormData.name}
+                                onChange={(e) => setEditFormData({ ...editFormData, name: e.target.value })}
+                                required
+                                placeholder="Full name"
+                                className="w-full px-4 py-2 bg-white border border-gray-300 rounded-lg text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                              />
+                            </div>
+                            <div>
+                              <label className="block text-sm font-semibold text-gray-900 mb-2">Email *</label>
+                              <input
+                                type="email"
+                                value={editFormData.email}
+                                onChange={(e) => setEditFormData({ ...editFormData, email: e.target.value })}
+                                required
+                                placeholder="user@college.edu"
+                                className="w-full px-4 py-2 bg-white border border-gray-300 rounded-lg text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                              />
+                            </div>
+                          </div>
+
+                          {/* STUDENT EDIT FIELDS */}
+                          {editFormData.role === 'student' && (
+                            <div className="space-y-4 p-3 bg-green-50 rounded border border-green-200">
+                              <h4 className="text-xs font-semibold text-green-900">Student Information</h4>
+                              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                <div>
+                                  <label className="block text-sm font-semibold text-gray-900 mb-2">Registration Number *</label>
+                                  <input
+                                    type="text"
+                                    value={editFormData.registrationNumber}
+                                    onChange={(e) => setEditFormData({ ...editFormData, registrationNumber: e.target.value })}
+                                    required
+                                    placeholder="e.g., CS2021001"
+                                    className="w-full px-4 py-2 bg-white border border-gray-300 rounded-lg text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                  />
+                                </div>
+                                <div>
+                                  <label className="block text-sm font-semibold text-gray-900 mb-2">Course Type</label>
+                                  <select
+                                    value={editFormData.courseType}
+                                    onChange={(e) => setEditFormData({ ...editFormData, courseType: e.target.value })}
+                                    className="w-full px-4 py-2 bg-white border border-gray-300 rounded-lg text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                  >
+                                    <option value="BTech">BTech</option>
+                                    <option value="MTech">MTech</option>
+                                  </select>
+                                </div>
+                                {editFormData.courseType === 'MTech' && (
+                                  <div>
+                                    <label className="block text-sm font-semibold text-gray-900 mb-2">Specialization *</label>
+                                    <select
+                                      value={editFormData.specialization}
+                                      onChange={(e) => setEditFormData({ ...editFormData, specialization: e.target.value })}
+                                      required
+                                      className="w-full px-4 py-2 bg-white border border-gray-300 rounded-lg text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                    >
+                                      <option value="">Select Specialization</option>
+                                      <option value="Artificial Intelligence and Machine Learning">Artificial Intelligence and Machine Learning</option>
+                                      <option value="Computer Science & Technology">Computer Science & Technology</option>
+                                      <option value="Computer Networks and Information Security">Computer Networks and Information Security</option>
+                                    </select>
+                                  </div>
+                                )}
+                                <div className="sm:col-span-2">
+                                  <label className="block text-sm font-semibold text-gray-900 mb-2">Classroom</label>
+                                  <select
+                                    value={editFormData.classroomId}
+                                    onChange={(e) => setEditFormData({ ...editFormData, classroomId: e.target.value })}
+                                    className="w-full px-4 py-2 bg-white border border-gray-300 rounded-lg text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                  >
+                                    <option value="">No Classroom</option>
+                                    {classrooms.map(c => (
+                                      <option key={c._id} value={c._id}>
+                                        {c.department} - Y{c.year} S{c.section}
+                                      </option>
+                                    ))}
+                                  </select>
+                                </div>
+                              </div>
+                            </div>
+                          )}
+
+                          {/* FACULTY/ADMIN EDIT FIELDS */}
+                          {(editFormData.role === 'faculty' || editFormData.role === 'admin') && (
+                            <div className="space-y-4 p-3 bg-blue-50 rounded border border-blue-200">
+                              <h4 className="text-xs font-semibold text-blue-900">{editFormData.role === 'faculty' ? 'Faculty' : 'Admin'} Information</h4>
+                              <div>
+                                <label className="block text-sm font-semibold text-gray-900 mb-2">Teacher ID / Admin ID *</label>
+                                <input
+                                  type="text"
+                                  value={editFormData.teacherId}
+                                  onChange={(e) => setEditFormData({ ...editFormData, teacherId: e.target.value })}
+                                  required
+                                  placeholder={editFormData.role === 'faculty' ? 'e.g., FACULTY001' : 'e.g., ADMIN001'}
+                                  className="w-full px-4 py-2 bg-white border border-gray-300 rounded-lg text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                />
+                              </div>
                             </div>
                           )}
                         </div>
                       )}
+
                       <div className="flex gap-3 pt-2">
                         <button
                           type="submit"
-                          className="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-4 rounded-lg shadow-sm hover:shadow-md transition-all duration-300"
+                          disabled={updateLoading}
+                          className={`flex-1 font-semibold py-2 px-4 rounded-lg shadow-sm transition-all duration-300 ${
+                            updateLoading 
+                              ? 'bg-gray-400 text-white cursor-not-allowed' 
+                              : 'bg-blue-600 hover:bg-blue-700 text-white hover:shadow-md'
+                          }`}
                         >
-                          Save Changes
+                          {updateLoading ? '⏳ Saving...' : 'Save Changes'}
                         </button>
                         <button
                           type="button"
+                          disabled={updateLoading}
                           onClick={() => {
                             setEditingUserId(null);
-                            setEditFormData({ name: '', email: '', role: 'student', rollNumber: '', classroomId: '' });
+                            setShowEditForm(false);
                           }}
-                          className="flex-1 bg-gray-200 hover:bg-gray-300 text-gray-900 font-semibold py-2 px-4 rounded-lg shadow-sm hover:shadow-md transition-all duration-300"
+                          className={`flex-1 font-semibold py-2 px-4 rounded-lg shadow-sm transition-all duration-300 ${
+                            updateLoading
+                              ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                              : 'bg-gray-200 hover:bg-gray-300 text-gray-900 hover:shadow-md'
+                          }`}
                         >
                           Cancel
                         </button>

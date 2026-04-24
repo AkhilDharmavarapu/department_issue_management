@@ -81,7 +81,9 @@ const authMiddleware = async (req, res, next) => {
       classroomId: user.classroomId,
       name: user.name,
       email: user.email,
-      rollNumber: user.rollNumber,
+      registrationNumber: user.registrationNumber,
+      teacherId: user.teacherId,
+      rollNumber: user.registrationNumber, // Backward compatibility for project team members
     };
 
     console.log('[AUTH MIDDLEWARE] ✅ User attached to request:', {
