@@ -4,7 +4,7 @@ import { useAuth } from '../context/AuthContext';
 import DashboardLayout from '../components/DashboardLayout';
 import { StatCard, Card } from '../components/CardComponents';
 import Classrooms from './admin/Classrooms';
-import Utilities from './admin/Utilities';
+import FacilityAssets from './admin/FacilityAssets';
 import ManageIssues from './admin/ManageIssues';
 import Labs from './admin/Labs';
 import UploadTimetable from './admin/UploadTimetable';
@@ -43,7 +43,7 @@ const AdminDashboard = () => {
   const menuItems = [
     { id: 'overview', label: 'Overview', icon: '📊' },
     { id: 'classrooms', label: 'Classrooms', icon: '🏫' },
-    { id: 'utilities', label: 'Utilities', icon: '🔧' },
+    { id: 'assets', label: 'Facility Assets', icon: '📦' },
     { id: 'labs', label: 'Labs', icon: '🖥️' },
     { id: 'issues', label: 'Manage Issues', icon: '⚠️' },
     { id: 'timetable', label: 'Timetable', icon: '📅' },
@@ -70,10 +70,10 @@ const AdminDashboard = () => {
             <h3 className="text-lg font-semibold text-gray-900 mb-4">Quick Actions</h3>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
               {[
-                { id: 'classrooms', icon: '🏫', label: 'Classrooms', desc: isReadOnly ? 'View classrooms' : 'Manage sections' },
-                { id: 'utilities', icon: '🔧', label: 'Utilities', desc: isReadOnly ? 'View resources' : 'Manage resources' },
-                { id: 'labs', icon: '🖥️', label: 'Labs', desc: isReadOnly ? 'View labs' : 'Manage labs' },
                 { id: 'issues', icon: '⚠️', label: 'Issues', desc: 'Manage and resolve issues' },
+                { id: 'classrooms', icon: '🏫', label: 'Classrooms', desc: isReadOnly ? 'View classrooms' : 'Manage sections' },
+                { id: 'labs', icon: '🖥️', label: 'Labs', desc: isReadOnly ? 'View labs' : 'Manage labs' },
+                { id: 'assets', icon: '📦', label: 'Facility Assets', desc: isReadOnly ? 'View assets' : 'Manage assets' },
               ].map(item => (
                 <button
                   key={item.id}
@@ -109,9 +109,9 @@ const AdminDashboard = () => {
               <p className="text-3xl font-bold text-gray-900">{stats?.totalLabs ?? 0}</p>
               <p className="text-sm text-gray-500 mt-2">Computer laboratories</p>
             </Card>
-            <Card title="Utilities">
-              <p className="text-3xl font-bold text-gray-900">{stats?.totalUtilities ?? 0}</p>
-              <p className="text-sm text-gray-500 mt-2">Resources tracked</p>
+            <Card title="Facility Assets">
+              <p className="text-3xl font-bold text-gray-900">{stats?.totalAssets ?? stats?.totalUtilities ?? 0}</p>
+              <p className="text-sm text-gray-500 mt-2">Assets tracked</p>
             </Card>
           </div>
 
@@ -127,7 +127,7 @@ const AdminDashboard = () => {
                   >
                     <div>
                       <p className="font-medium text-gray-900 text-sm">{issue.title}</p>
-                      <p className="text-xs text-gray-500 mt-1">{issue.reportedBy?.name || 'Unknown'}</p>
+                      <p className="text-xs text-gray-500 mt-1">{issue.createdBy?.name || 'Unknown'}</p>
                     </div>
                     <div className="flex gap-2">
                       <span className="px-2 py-1 text-xs font-medium rounded bg-blue-100 text-blue-700">
@@ -149,7 +149,7 @@ const AdminDashboard = () => {
 
     // Sub-pages
     if (activeTab === 'classrooms') return <Classrooms onBack={() => setActiveTab('overview')} isReadOnly={isReadOnly} />;
-    if (activeTab === 'utilities') return <Utilities onBack={() => setActiveTab('overview')} isReadOnly={isReadOnly} />;
+    if (activeTab === 'assets') return <FacilityAssets onBack={() => setActiveTab('overview')} isReadOnly={isReadOnly} />;
     if (activeTab === 'labs') return <Labs onBack={() => setActiveTab('overview')} isReadOnly={isReadOnly} />;
     if (activeTab === 'issues') return <ManageIssues onBack={() => setActiveTab('overview')} isReadOnly={isReadOnly} />;
     if (activeTab === 'timetable') return <UploadTimetable onBack={() => setActiveTab('overview')} isReadOnly={isReadOnly} />;

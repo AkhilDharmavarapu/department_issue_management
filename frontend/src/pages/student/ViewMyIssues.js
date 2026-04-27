@@ -1,9 +1,17 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { issueAPI } from '../../services/api';
 
+const API_BASE = process.env.REACT_APP_API_URL?.replace('/api', '') || 'http://localhost:5000';
+
+const CATEGORY_LABELS = {
+  asset: 'Asset',
+  infrastructure: 'Infrastructure',
+  academic: 'Academic',
+  conduct: 'Conduct',
+  general: 'General',
+};
+
 const ViewMyIssues = ({ onBack }) => {
-  const navigate = useNavigate();
   const [issues, setIssues] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -31,7 +39,6 @@ const ViewMyIssues = ({ onBack }) => {
 
   const handleAddComment = async (issueId) => {
     if (!commentText.trim()) return;
-
     try {
       await issueAPI.addComment(issueId, { text: commentText });
       setCommentText('');
@@ -45,21 +52,30 @@ const ViewMyIssues = ({ onBack }) => {
 
   const getStatusColor = (status) => {
     const colors = {
-      Open: 'bg-blue-100 text-blue-700',
-      'In Progress': 'bg-amber-100 text-amber-700',
-      Resolved: 'bg-green-100 text-green-700',
+      open: 'bg-blue-100 text-blue-700',
+      'in-progress': 'bg-amber-100 text-amber-700',
+      resolved: 'bg-green-100 text-green-700',
     };
     return colors[status] || 'bg-gray-100 text-gray-700';
   };
 
+  const getStatusLabel = (status) => {
+    const labels = { open: 'Open', 'in-progress': 'In Progress', resolved: 'Resolved' };
+    return labels[status] || status;
+  };
+
   const getPriorityColor = (priority) => {
     const colors = {
-      Minor: 'bg-green-100 text-green-700',
-      Normal: 'bg-blue-100 text-blue-700',
-      Important: 'bg-amber-100 text-amber-700',
-      Urgent: 'bg-red-100 text-red-700',
+      low: 'bg-gray-100 text-gray-700',
+      normal: 'bg-blue-100 text-blue-700',
+      high: 'bg-red-100 text-red-700',
     };
     return colors[priority] || 'bg-gray-100 text-gray-700';
+  };
+
+  const getPriorityLabel = (priority) => {
+    const labels = { low: 'Low', normal: 'Normal', high: 'High' };
+    return labels[priority] || priority;
   };
 
   return (
@@ -74,8 +90,8 @@ const ViewMyIssues = ({ onBack }) => {
             <span>←</span>
             <span>Back to Dashboard</span>
           </button>
-          <h1 className="text-4xl font-bold text-gray-900 mb-3">My Issues</h1>
-          <p className="text-gray-500 text-base">Track and manage your reported issues</p>
+          <h1 className="text-3xl font-bold text-gray-900 mb-2">My Issues</h1>
+          <p className="text-gray-500 text-sm">Track and manage your reported issues</p>
         </div>
       </div>
 
@@ -83,9 +99,9 @@ const ViewMyIssues = ({ onBack }) => {
       <div className="mb-6 flex gap-2 flex-wrap">
         {[
           { label: 'All', value: '' },
-          { label: 'Open', value: 'Open' },
-          { label: 'In Progress', value: 'In Progress' },
-          { label: 'Resolved', value: 'Resolved' },
+          { label: 'Open', value: 'open' },
+          { label: 'In Progress', value: 'in-progress' },
+          { label: 'Resolved', value: 'resolved' },
         ].map(btn => (
           <button
             key={btn.value}
@@ -112,7 +128,7 @@ const ViewMyIssues = ({ onBack }) => {
       {loading ? (
         <div className="text-center py-12">
           <div className="inline-block">
-            <div className="w-10 h-10 border-4 border-blue-200 border-t-blue-600 rounded-full animate-spin"></div>
+            <div className="w-10 h-10 border-4 border-blue-200 border-t-blue-600 rounded-full animate-spin" />
             <p className="text-gray-500 mt-3 text-sm font-medium">Loading issues...</p>
           </div>
         </div>
@@ -120,7 +136,7 @@ const ViewMyIssues = ({ onBack }) => {
         <div className="bg-white rounded-lg border border-gray-200 text-center py-12">
           <div className="text-5xl mb-3">📋</div>
           <p className="text-gray-500 text-lg">No issues found</p>
-          <p className="text-gray-500 text-sm mt-2">Try reporting a new issue from the dashboard</p>
+          <p className="text-gray-400 text-sm mt-2">Try reporting a new issue from the dashboard</p>
         </div>
       ) : (
         <div className="space-y-4">
@@ -137,20 +153,26 @@ const ViewMyIssues = ({ onBack }) => {
                 </div>
                 <div className="flex gap-2 flex-shrink-0 ml-4">
                   <span className={`px-3 py-1 rounded text-xs font-medium whitespace-nowrap ${getStatusColor(issue.status)}`}>
-                    {issue.status}
+                    {getStatusLabel(issue.status)}
                   </span>
                   <span className={`px-3 py-1 rounded text-xs font-medium whitespace-nowrap ${getPriorityColor(issue.priority)}`}>
-                    {issue.priority}
+                    {getPriorityLabel(issue.priority)}
                   </span>
                 </div>
               </div>
 
               {/* Details Grid */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 mb-4 py-4 border-y border-gray-200 text-sm">
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 mb-4 py-4 border-y border-gray-200 text-sm">
                 <div>
                   <p className="text-gray-500 text-xs font-medium">Category</p>
-                  <p className="text-gray-900 font-medium mt-1 capitalize">{issue.category}</p>
+                  <p className="text-gray-900 font-medium mt-1">{CATEGORY_LABELS[issue.category] || issue.category}</p>
                 </div>
+                {issue.category === 'asset' && (
+                  <div>
+                    <p className="text-gray-500 text-xs font-medium">Asset</p>
+                    <p className="text-gray-900 font-medium mt-1">{issue.assetType} — {issue.block}, {issue.room}</p>
+                  </div>
+                )}
                 <div>
                   <p className="text-gray-500 text-xs font-medium">Created</p>
                   <p className="text-gray-900 font-medium mt-1">{new Date(issue.createdAt).toLocaleDateString()}</p>
@@ -161,29 +183,17 @@ const ViewMyIssues = ({ onBack }) => {
                 </div>
               </div>
 
-              {/* Proof Preview Thumbnails */}
-              {(issue.reportProof || issue.resolutionProof) && (
-                <div className="mb-4 flex gap-2 flex-wrap">
-                  {issue.reportProof && (
-                    <div className="relative group">
-                      <img 
-                        src={`http://localhost:5000/${issue.reportProof}`}
-                        alt="Proof thumbnail"
-                        className="h-16 w-16 object-cover rounded-lg border border-gray-300"
-                      />
-                      <span className="absolute bottom-0 right-0 bg-blue-500 text-white text-xs px-1 rounded-tl">📸</span>
-                    </div>
-                  )}
-                  {issue.resolutionProof && (
-                    <div className="relative group">
-                      <img 
-                        src={`http://localhost:5000/${issue.resolutionProof}`}
-                        alt="Resolution thumbnail"
-                        className="h-16 w-16 object-cover rounded-lg border border-green-300"
-                      />
-                      <span className="absolute bottom-0 right-0 bg-green-500 text-white text-xs px-1 rounded-tl">✓</span>
-                    </div>
-                  )}
+              {/* Proof Preview */}
+              {issue.proofImage && (
+                <div className="mb-4">
+                  <div className="relative group inline-block">
+                    <img
+                      src={`${API_BASE}/${issue.proofImage}`}
+                      alt="Proof"
+                      className="h-16 w-16 object-cover rounded-lg border border-gray-300"
+                    />
+                    <span className="absolute bottom-0 right-0 bg-blue-500 text-white text-xs px-1 rounded-tl">📸</span>
+                  </div>
                 </div>
               )}
 
@@ -224,24 +234,45 @@ const ViewMyIssues = ({ onBack }) => {
               <div>
                 <p className="text-gray-500 text-xs font-medium mb-1">Status</p>
                 <span className={`inline-block px-2 py-1 rounded text-xs font-medium ${getStatusColor(selectedIssue.status)}`}>
-                  {selectedIssue.status}
+                  {getStatusLabel(selectedIssue.status)}
                 </span>
               </div>
               <div>
                 <p className="text-gray-500 text-xs font-medium mb-1">Priority</p>
                 <span className={`inline-block px-2 py-1 rounded text-xs font-medium ${getPriorityColor(selectedIssue.priority)}`}>
-                  {selectedIssue.priority}
+                  {getPriorityLabel(selectedIssue.priority)}
                 </span>
               </div>
               <div>
                 <p className="text-gray-500 text-xs font-medium mb-1">Category</p>
-                <p className="text-gray-900 text-sm capitalize font-medium">{selectedIssue.category}</p>
+                <p className="text-gray-900 text-sm font-medium">{CATEGORY_LABELS[selectedIssue.category] || selectedIssue.category}</p>
               </div>
               <div>
                 <p className="text-gray-500 text-xs font-medium mb-1">Created</p>
                 <p className="text-gray-900 text-sm font-medium">{new Date(selectedIssue.createdAt).toLocaleDateString()}</p>
               </div>
             </div>
+
+            {/* Asset Details (if applicable) */}
+            {selectedIssue.category === 'asset' && (
+              <div className="mb-4 p-4 bg-amber-50 rounded-lg border border-amber-200 text-sm">
+                <p className="font-semibold text-amber-800 mb-2">Asset Details</p>
+                <div className="grid grid-cols-2 gap-2 text-amber-700">
+                  <span>Type: <strong>{selectedIssue.assetType}</strong></span>
+                  <span>Block: <strong>{selectedIssue.block}</strong></span>
+                  <span>Room: <strong>{selectedIssue.room}</strong></span>
+                  <span>Qty: <strong>{selectedIssue.quantity}</strong> ({selectedIssue.issueType})</span>
+                </div>
+              </div>
+            )}
+
+            {/* Academic Details (if applicable) */}
+            {selectedIssue.category === 'academic' && (
+              <div className="mb-4 p-4 bg-blue-50 rounded-lg border border-blue-200 text-sm">
+                <p className="font-semibold text-blue-800 mb-1">Subject: {selectedIssue.subject}</p>
+                {selectedIssue.facultyName && <p className="text-blue-700">Faculty: {selectedIssue.facultyName}</p>}
+              </div>
+            )}
 
             {/* Assigned To */}
             {selectedIssue.assignedTo && (
@@ -251,37 +282,19 @@ const ViewMyIssues = ({ onBack }) => {
               </div>
             )}
 
-            {/* Proofs */}
+            {/* Proof */}
             <div className="mb-4">
-              <h4 className="font-semibold text-gray-900 mb-3">Proofs</h4>
-              <div className="space-y-3">
-                <div>
-                  <p className="text-gray-600 text-xs font-medium mb-2">Your Proof</p>
-                  {selectedIssue.reportProof ? (
-                    <img 
-                      src={`http://localhost:5000/${selectedIssue.reportProof}`}
-                      alt="Report proof"
-                      className="w-full max-h-40 object-cover rounded-lg border border-gray-300 cursor-pointer hover:border-blue-400 transition-colors"
-                      onClick={() => window.open(`http://localhost:5000/${selectedIssue.reportProof}`, '_blank')}
-                    />
-                  ) : (
-                    <p className="text-gray-500 text-sm italic py-4">No proof uploaded when reporting</p>
-                  )}
-                </div>
-                <div>
-                  <p className="text-gray-600 text-xs font-medium mb-2">Resolution Proof</p>
-                  {selectedIssue.resolutionProof ? (
-                    <img 
-                      src={`http://localhost:5000/${selectedIssue.resolutionProof}`}
-                      alt="Resolution proof"
-                      className="w-full max-h-40 object-cover rounded-lg border border-gray-300 cursor-pointer hover:border-blue-400 transition-colors"
-                      onClick={() => window.open(`http://localhost:5000/${selectedIssue.resolutionProof}`, '_blank')}
-                    />
-                  ) : (
-                    <p className="text-gray-500 text-sm italic py-4">No resolution proof uploaded yet</p>
-                  )}
-                </div>
-              </div>
+              <h4 className="font-semibold text-gray-900 mb-3">Proof</h4>
+              {selectedIssue.proofImage ? (
+                <img
+                  src={`${API_BASE}/${selectedIssue.proofImage}`}
+                  alt="Issue proof"
+                  className="w-full max-h-40 object-cover rounded-lg border border-gray-300 cursor-pointer hover:border-blue-400 transition-colors"
+                  onClick={() => window.open(`${API_BASE}/${selectedIssue.proofImage}`, '_blank')}
+                />
+              ) : (
+                <p className="text-gray-500 text-sm italic py-4">No proof uploaded</p>
+              )}
             </div>
 
             {/* Comments */}
@@ -301,7 +314,7 @@ const ViewMyIssues = ({ onBack }) => {
                 )}
               </div>
 
-              {selectedIssue.status !== 'Resolved' && (
+              {selectedIssue.status !== 'resolved' && (
                 <div className="flex gap-2 pt-2">
                   <input
                     type="text"

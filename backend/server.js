@@ -36,6 +36,7 @@ connectDB();
 // Import route handlers
 const classroomRoutes = require('./routes/classroom');
 const utilityRoutes = require('./routes/utility');
+const assetRoutes = require('./routes/asset');
 const labRoutes = require('./routes/lab');
 const issueRoutes = require('./routes/issue');
 const projectRoutes = require('./routes/project');
@@ -68,6 +69,16 @@ app.use('/api/classrooms', classroomRoutes);
  * DELETE /api/utilities/:id - Delete utility (Admin)
  */
 app.use('/api/utilities', utilityRoutes);
+
+/**
+ * Facility Asset Routes
+ * POST /api/assets - Create asset (Admin)
+ * GET /api/assets - Get all assets (Admin, HOD)
+ * GET /api/assets/:id - Get asset (Authenticated)
+ * PUT /api/assets/:id - Update asset (Admin)
+ * DELETE /api/assets/:id - Delete asset (Admin)
+ */
+app.use('/api/assets', assetRoutes);
 
 /**
  * Lab Management Routes

@@ -3,6 +3,7 @@ const Classroom = require('../models/Classroom');
 const Project = require('../models/Project');
 const User = require('../models/User');
 const Utility = require('../models/Utility');
+const Asset = require('../models/Asset');
 const Lab = require('../models/Lab');
 
 /**
@@ -18,16 +19,18 @@ exports.getAdminStats = async (req, res, next) => {
       inProgressIssues,
       resolvedIssues,
       totalUtilities,
+      totalAssets,
       totalLabs,
       totalProjects,
     ] = await Promise.all([
       Classroom.countDocuments(),
       User.countDocuments(),
       Issue.countDocuments(),
-      Issue.countDocuments({ status: 'Open' }),
-      Issue.countDocuments({ status: 'In Progress' }),
-      Issue.countDocuments({ status: 'Resolved' }),
+      Issue.countDocuments({ status: 'open' }),
+      Issue.countDocuments({ status: 'in-progress' }),
+      Issue.countDocuments({ status: 'resolved' }),
       Utility.countDocuments(),
+      Asset.countDocuments(),
       Lab.countDocuments(),
       Project.countDocuments(),
     ]);
@@ -65,11 +68,10 @@ exports.getAdminStats = async (req, res, next) => {
 
     // Recent issues
     const recentIssues = await Issue.find()
-      .populate('reportedBy', 'name')
-      .populate('classroomId', 'department year section')
+      .populate('createdBy', 'name')
       .sort({ createdAt: -1 })
       .limit(5)
-      .select('title status priority createdAt');
+      .select('title status priority category createdAt');
 
     res.status(200).json({
       success: true,
@@ -81,6 +83,7 @@ exports.getAdminStats = async (req, res, next) => {
         inProgressIssues,
         resolvedIssues,
         totalUtilities,
+        totalAssets,
         totalLabs,
         totalProjects,
         issuesByClassroom,
@@ -102,13 +105,12 @@ exports.getFacultyStats = async (req, res, next) => {
 
     // Get classrooms where faculty is assigned
     const classrooms = await Classroom.find({ facultyList: userId });
-    const classroomIds = classrooms.map(c => c._id);
 
     const [totalProjects, totalIssues, openIssues, resolvedIssues] = await Promise.all([
       Project.countDocuments({ facultyId: userId }),
-      Issue.countDocuments({ classroomId: { $in: classroomIds } }),
-      Issue.countDocuments({ classroomId: { $in: classroomIds }, status: 'Open' }),
-      Issue.countDocuments({ classroomId: { $in: classroomIds }, status: 'Resolved' }),
+      Issue.countDocuments(),
+      Issue.countDocuments({ status: 'open' }),
+      Issue.countDocuments({ status: 'resolved' }),
     ]);
 
     res.status(200).json({
@@ -134,10 +136,10 @@ exports.getStudentStats = async (req, res, next) => {
     const { userId } = req.user;
 
     const [totalIssues, openIssues, inProgressIssues, resolvedIssues] = await Promise.all([
-      Issue.countDocuments({ reportedBy: userId }),
-      Issue.countDocuments({ reportedBy: userId, status: 'Open' }),
-      Issue.countDocuments({ reportedBy: userId, status: 'In Progress' }),
-      Issue.countDocuments({ reportedBy: userId, status: 'Resolved' }),
+      Issue.countDocuments({ createdBy: userId }),
+      Issue.countDocuments({ createdBy: userId, status: 'open' }),
+      Issue.countDocuments({ createdBy: userId, status: 'in-progress' }),
+      Issue.countDocuments({ createdBy: userId, status: 'resolved' }),
     ]);
 
     res.status(200).json({

@@ -1,9 +1,17 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { issueAPI, userAPI } from '../../services/api';
 
+const API_BASE = process.env.REACT_APP_API_URL?.replace('/api', '') || 'http://localhost:5000';
+
+const CATEGORY_LABELS = {
+  asset: 'Asset',
+  infrastructure: 'Infrastructure',
+  academic: 'Academic',
+  conduct: 'Conduct',
+  general: 'General',
+};
+
 const ManageIssues = ({ onBack, isReadOnly = false }) => {
-  const navigate = useNavigate();
   const [issues, setIssues] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -45,6 +53,8 @@ const ManageIssues = ({ onBack, isReadOnly = false }) => {
   const handleStatusChange = async (issueId, newStatus) => {
     try {
       await issueAPI.updateIssueStatus(issueId, { status: newStatus });
+      setSuccess('Status updated successfully');
+      setTimeout(() => setSuccess(''), 3000);
       fetchIssues();
       if (expandedIssueId === issueId) {
         const response = await issueAPI.getIssueById(issueId);
@@ -86,21 +96,16 @@ const ManageIssues = ({ onBack, isReadOnly = false }) => {
       setError('Please select a proof image');
       return;
     }
-
     setUploadingProof(prev => ({ ...prev, [issueId]: true }));
     try {
       const formData = new FormData();
       formData.append('proof', resolutionProof[issueId]);
-
       await issueAPI.uploadResolutionProof(issueId, formData);
       setResolutionProof(prev => ({ ...prev, [issueId]: null }));
       setError('');
-      setSuccess('✅ Resolution proof uploaded successfully!');
-      
-      // Refresh issue details
+      setSuccess('Resolution proof uploaded successfully');
       const response = await issueAPI.getIssueById(issueId);
       setExpandedIssueDetails(response.data.data);
-      
       setTimeout(() => setSuccess(''), 3000);
     } catch (err) {
       setError(err.response?.data?.message || 'Failed to upload proof');
@@ -111,11 +116,9 @@ const ManageIssues = ({ onBack, isReadOnly = false }) => {
 
   const toggleExpandCard = async (issueId) => {
     if (expandedIssueId === issueId) {
-      // Collapse the card
       setExpandedIssueId(null);
       setExpandedIssueDetails(null);
     } else {
-      // Expand the card and fetch full details
       try {
         const response = await issueAPI.getIssueById(issueId);
         setExpandedIssueId(issueId);
@@ -128,37 +131,57 @@ const ManageIssues = ({ onBack, isReadOnly = false }) => {
 
   const getStatusColor = (status) => {
     const colors = {
-      Open: 'bg-blue-100 text-blue-700 border border-blue-300',
-      'In Progress': 'bg-amber-100 text-amber-700 border border-amber-300',
-      Resolved: 'bg-emerald-100 text-emerald-700 border border-emerald-300',
+      open: 'bg-blue-100 text-blue-700 border border-blue-300',
+      'in-progress': 'bg-amber-100 text-amber-700 border border-amber-300',
+      resolved: 'bg-emerald-100 text-emerald-700 border border-emerald-300',
     };
     return colors[status] || 'bg-gray-100 text-gray-700';
   };
 
+  const getStatusLabel = (status) => {
+    const labels = { open: 'Open', 'in-progress': 'In Progress', resolved: 'Resolved' };
+    return labels[status] || status;
+  };
+
   const getPriorityColor = (priority) => {
     const colors = {
-      Minor: 'bg-gray-100 text-gray-700 border border-gray-300',
-      Normal: 'bg-blue-100 text-blue-700 border border-blue-300',
-      Important: 'bg-orange-100 text-orange-700 border border-orange-300',
-      Urgent: 'bg-red-100 text-red-700 border border-red-300',
+      low: 'bg-gray-100 text-gray-700 border border-gray-300',
+      normal: 'bg-blue-100 text-blue-700 border border-blue-300',
+      high: 'bg-red-100 text-red-700 border border-red-300',
     };
     return colors[priority] || 'bg-gray-100 text-gray-700';
   };
 
+  const getPriorityLabel = (priority) => {
+    const labels = { low: 'Low', normal: 'Normal', high: 'High' };
+    return labels[priority] || priority;
+  };
+
   const getStatusBorderColor = (status) => {
     const colors = {
-      Open: 'border-l-blue-500',
-      'In Progress': 'border-l-amber-500',
-      Resolved: 'border-l-emerald-500',
+      open: 'border-l-blue-500',
+      'in-progress': 'border-l-amber-500',
+      resolved: 'border-l-emerald-500',
     };
     return colors[status] || 'border-l-gray-500';
   };
 
+  const getCategoryColor = (category) => {
+    const colors = {
+      asset: 'bg-orange-100 text-orange-700',
+      infrastructure: 'bg-purple-100 text-purple-700',
+      academic: 'bg-indigo-100 text-indigo-700',
+      conduct: 'bg-pink-100 text-pink-700',
+      general: 'bg-gray-100 text-gray-700',
+    };
+    return colors[category] || 'bg-gray-100 text-gray-700';
+  };
+
   const filterButtons = [
     { label: 'All Issues', value: '' },
-    { label: 'Open', value: 'Open' },
-    { label: 'In Progress', value: 'In Progress' },
-    { label: 'Resolved', value: 'Resolved' },
+    { label: 'Open', value: 'open' },
+    { label: 'In Progress', value: 'in-progress' },
+    { label: 'Resolved', value: 'resolved' },
   ];
 
   return (
@@ -172,16 +195,16 @@ const ManageIssues = ({ onBack, isReadOnly = false }) => {
       </button>
 
       <div className="mb-8">
-        <h1 className="text-4xl font-bold text-gray-900 mb-2">Manage Issues</h1>
-        <p className="text-gray-500 mb-6">Review, assign, and resolve reported issues</p>
+        <h1 className="text-3xl font-bold text-gray-900 mb-2">Manage Issues</h1>
+        <p className="text-gray-500 mb-6 text-sm">Review, assign, and resolve reported issues</p>
         <div className="flex gap-2 flex-wrap">
           {filterButtons.map(btn => (
             <button
               key={btn.value}
               onClick={() => setFilterStatus(btn.value)}
-              className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-300 ${
+              className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
                 filterStatus === btn.value
-                  ? 'bg-blue-600 text-white shadow-md'
+                  ? 'bg-blue-600 text-white shadow-sm'
                   : 'bg-white text-gray-700 hover:bg-gray-50 border border-gray-300'
               }`}
             >
@@ -192,17 +215,23 @@ const ManageIssues = ({ onBack, isReadOnly = false }) => {
       </div>
 
       {error && (
-        <div className="mb-6 p-4 bg-red-50 border border-red-300 text-red-700 rounded-xl">
-          {error}
+        <div className="mb-6 p-4 bg-red-50 border border-red-200 text-red-700 rounded-lg text-sm">
+          ⚠️ {error}
+        </div>
+      )}
+      {success && (
+        <div className="mb-6 p-4 bg-green-50 border border-green-200 text-green-700 rounded-lg text-sm">
+          ✅ {success}
         </div>
       )}
 
       {loading ? (
         <div className="text-center py-12">
-          <p className="text-gray-500">Loading issues...</p>
+          <div className="w-10 h-10 border-4 border-blue-200 border-t-blue-600 rounded-full animate-spin mx-auto" />
+          <p className="text-gray-500 mt-3 text-sm">Loading issues...</p>
         </div>
       ) : issues.length === 0 ? (
-        <div className="text-center py-12 bg-gray-50 rounded-2xl border border-gray-200">
+        <div className="text-center py-12 bg-gray-50 rounded-xl border border-gray-200">
           <p className="text-gray-500 text-lg">No issues found</p>
         </div>
       ) : (
@@ -210,11 +239,11 @@ const ManageIssues = ({ onBack, isReadOnly = false }) => {
           {issues.map(issue => (
             <div
               key={issue._id}
-              className={`bg-white rounded-xl shadow-sm border-l-4 transition-all duration-300 ${getStatusBorderColor(issue.status)} ${
+              className={`bg-white rounded-xl shadow-sm border-l-4 transition-all ${getStatusBorderColor(issue.status)} ${
                 expandedIssueId === issue._id ? 'ring-2 ring-blue-500 shadow-md' : 'hover:shadow-md border border-gray-200'
               }`}
             >
-              {/* COLLAPSED VIEW - Always shown */}
+              {/* COLLAPSED VIEW */}
               <div
                 onClick={() => toggleExpandCard(issue._id)}
                 className="p-6 cursor-pointer"
@@ -226,42 +255,43 @@ const ManageIssues = ({ onBack, isReadOnly = false }) => {
                   </div>
                   <div className="flex gap-2 flex-shrink-0">
                     <span className={`px-3 py-1 rounded-full text-xs font-semibold ${getStatusColor(issue.status)}`}>
-                      {issue.status}
+                      {getStatusLabel(issue.status)}
                     </span>
                     <span className={`px-3 py-1 rounded-full text-xs font-semibold ${getPriorityColor(issue.priority)}`}>
-                      {issue.priority}
+                      {getPriorityLabel(issue.priority)}
                     </span>
                   </div>
                 </div>
 
-                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2 text-xs mb-4">
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
                   <div>
                     <p className="text-gray-500">Category</p>
-                    <p className="text-gray-700 capitalize font-medium">{issue.category}</p>
+                    <span className={`inline-block mt-1 px-2 py-0.5 rounded text-xs font-medium ${getCategoryColor(issue.category)}`}>
+                      {CATEGORY_LABELS[issue.category] || issue.category}
+                    </span>
                   </div>
                   <div>
                     <p className="text-gray-500">Reported By</p>
-                    <p className="text-gray-700 font-medium">{issue.reportedBy?.name}</p>
+                    <p className="text-gray-700 font-medium">{issue.createdBy?.name || '—'}</p>
                   </div>
-                  <div>
-                    <p className="text-gray-500">Classroom</p>
-                    <p className="text-gray-700 font-medium">
-                      {issue.classroomId?.department} {issue.classroomId?.year && `Y${issue.classroomId.year}`} {issue.classroomId?.section}
-                    </p>
-                  </div>
+                  {issue.category === 'asset' && (
+                    <div>
+                      <p className="text-gray-500">Asset</p>
+                      <p className="text-gray-700 font-medium">{issue.assetType} — {issue.room}</p>
+                    </div>
+                  )}
                   <div>
                     <p className="text-gray-500">Created</p>
                     <p className="text-gray-700 font-medium">{new Date(issue.createdAt).toLocaleDateString()}</p>
                   </div>
                 </div>
 
-                {/* Expand indicator */}
-                <div className="text-center text-gray-400 text-sm">
+                <div className="text-center text-gray-400 text-sm mt-3">
                   {expandedIssueId === issue._id ? '▼ Click to collapse' : '▶ Click to expand'}
                 </div>
               </div>
 
-              {/* EXPANDED VIEW - Details section */}
+              {/* EXPANDED VIEW */}
               {expandedIssueId === issue._id && expandedIssueDetails && (
                 <div className="border-t border-gray-200 p-6 bg-gray-50">
                   {/* Full Description */}
@@ -270,26 +300,38 @@ const ManageIssues = ({ onBack, isReadOnly = false }) => {
                     <p className="text-gray-700 leading-relaxed">{expandedIssueDetails.description}</p>
                   </div>
 
+                  {/* Asset Details */}
+                  {expandedIssueDetails.category === 'asset' && (
+                    <div className="mb-6 p-4 bg-amber-50 rounded-lg border border-amber-200 text-sm">
+                      <p className="font-semibold text-amber-800 mb-2">Asset Details</p>
+                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-amber-700">
+                        <span>Type: <strong>{expandedIssueDetails.assetType}</strong></span>
+                        <span>Block: <strong>{expandedIssueDetails.block}</strong></span>
+                        <span>Room: <strong>{expandedIssueDetails.room}</strong></span>
+                        <span>Qty: <strong>{expandedIssueDetails.quantity}</strong> ({expandedIssueDetails.issueType})</span>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Academic Details */}
+                  {expandedIssueDetails.category === 'academic' && (
+                    <div className="mb-6 p-4 bg-indigo-50 rounded-lg border border-indigo-200 text-sm">
+                      <p className="font-semibold text-indigo-800 mb-1">Subject: {expandedIssueDetails.subject}</p>
+                      {expandedIssueDetails.facultyName && <p className="text-indigo-700">Faculty: {expandedIssueDetails.facultyName}</p>}
+                    </div>
+                  )}
+
                   {/* Details Grid */}
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
                     <div>
                       <p className="text-gray-500 text-xs font-semibold mb-1">Reported By</p>
-                      <p className="text-gray-900">{expandedIssueDetails.reportedBy?.name}</p>
-                      <p className="text-gray-600 text-sm">{expandedIssueDetails.reportedBy?.email}</p>
+                      <p className="text-gray-900">{expandedIssueDetails.createdBy?.name || '—'}</p>
+                      <p className="text-gray-600 text-sm">{expandedIssueDetails.createdBy?.email}</p>
                     </div>
-
-                    <div>
-                      <p className="text-gray-500 text-xs font-semibold mb-1">Classroom</p>
-                      <p className="text-gray-900">
-                        {expandedIssueDetails.classroomId?.department} Year {expandedIssueDetails.classroomId?.year} Section {expandedIssueDetails.classroomId?.section}
-                      </p>
-                    </div>
-
                     <div>
                       <p className="text-gray-500 text-xs font-semibold mb-1">Created</p>
                       <p className="text-gray-700">{new Date(expandedIssueDetails.createdAt).toLocaleString()}</p>
                     </div>
-
                     {expandedIssueDetails.resolvedAt && (
                       <div>
                         <p className="text-gray-500 text-xs font-semibold mb-1">Resolved At</p>
@@ -299,24 +341,26 @@ const ManageIssues = ({ onBack, isReadOnly = false }) => {
                   </div>
 
                   {/* Action Buttons */}
-                  <div className="flex flex-wrap gap-2 mb-6">
-                    {expandedIssueDetails.status === 'Open' && (
-                      <button
-                        onClick={(e) => { e.stopPropagation(); handleStatusChange(issue._id, 'In Progress'); }}
-                        className="bg-blue-600 hover:bg-blue-700 text-white border border-blue-600 px-4 py-2 rounded-lg text-sm font-semibold shadow-sm hover:shadow-md transition-all"
-                      >
-                        → In Progress
-                      </button>
-                    )}
-                    {expandedIssueDetails.status !== 'Resolved' && (
-                      <button
-                        onClick={(e) => { e.stopPropagation(); handleStatusChange(issue._id, 'Resolved'); }}
-                        className="bg-green-600 hover:bg-green-700 text-white border border-green-600 px-4 py-2 rounded-lg text-sm font-semibold shadow-sm hover:shadow-md transition-all"
-                      >
-                        ✓ Resolve
-                      </button>
-                    )}
-                  </div>
+                  {!isReadOnly && (
+                    <div className="flex flex-wrap gap-2 mb-6">
+                      {expandedIssueDetails.status === 'open' && (
+                        <button
+                          onClick={(e) => { e.stopPropagation(); handleStatusChange(issue._id, 'in-progress'); }}
+                          className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-semibold shadow-sm hover:shadow-md transition-all"
+                        >
+                          → In Progress
+                        </button>
+                      )}
+                      {expandedIssueDetails.status !== 'resolved' && (
+                        <button
+                          onClick={(e) => { e.stopPropagation(); handleStatusChange(issue._id, 'resolved'); }}
+                          className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg text-sm font-semibold shadow-sm hover:shadow-md transition-all"
+                        >
+                          ✓ Resolve
+                        </button>
+                      )}
+                    </div>
+                  )}
 
                   {/* Assign To */}
                   <div className="mb-6">
@@ -338,58 +382,38 @@ const ManageIssues = ({ onBack, isReadOnly = false }) => {
                     </select>
                   </div>
 
-                  {/* Proofs Section */}
+                  {/* Proof Section */}
                   <div className="border-t border-gray-300 pt-6 mb-6">
-                    <h3 className="text-lg font-bold text-gray-900 mb-4">📷 Proofs</h3>
+                    <h3 className="text-lg font-bold text-gray-900 mb-4">Proof</h3>
+                    {expandedIssueDetails.proofImage ? (
+                      <img
+                        src={`${API_BASE}/${expandedIssueDetails.proofImage}`}
+                        alt="Issue proof"
+                        className="w-full max-w-md rounded-lg border border-gray-300 cursor-pointer hover:shadow-md transition-shadow"
+                        onClick={() => window.open(`${API_BASE}/${expandedIssueDetails.proofImage}`, '_blank')}
+                      />
+                    ) : (
+                      <p className="text-gray-500 text-sm italic">No proof uploaded</p>
+                    )}
 
-                    {/* Report Proof */}
-                    <div className="mb-4">
-                      <p className="text-gray-500 text-xs font-semibold mb-2">Reported Proof (by Student)</p>
-                      {expandedIssueDetails.reportProof ? (
-                        <img 
-                          src={`http://localhost:5000/${expandedIssueDetails.reportProof}`}
-                          alt="Report proof"
-                          className="w-full max-w-md rounded-lg border border-gray-300 cursor-pointer hover:shadow-md transition-shadow"
-                          onClick={() => window.open(`http://localhost:5000/${expandedIssueDetails.reportProof}`, '_blank')}
+                    {/* Upload resolution proof (when resolved and no proof yet) */}
+                    {!isReadOnly && expandedIssueDetails.status === 'resolved' && !expandedIssueDetails.proofImage && (
+                      <div className="mt-4 space-y-2">
+                        <input
+                          type="file"
+                          accept="image/*"
+                          onChange={(e) => setResolutionProof(prev => ({ ...prev, [issue._id]: e.target.files?.[0] || null }))}
+                          className="w-full text-sm px-3 py-2 bg-white border border-gray-300 rounded-lg text-gray-900 focus:outline-none file:mr-3 file:py-1 file:bg-blue-600 file:text-white file:rounded file:border-0 file:cursor-pointer"
                         />
-                      ) : (
-                        <p className="text-gray-500 text-sm italic">No proof uploaded by student</p>
-                      )}
-                    </div>
-
-                    {/* Resolution Proof */}
-                    <div>
-                      <p className="text-gray-500 text-xs font-semibold mb-2">Resolution Proof (by Admin/Faculty/HOD)</p>
-                      {expandedIssueDetails.resolutionProof ? (
-                        <img 
-                          src={`http://localhost:5000/${expandedIssueDetails.resolutionProof}`}
-                          alt="Resolution proof"
-                          className="w-full max-w-md rounded-lg border border-gray-300 cursor-pointer hover:shadow-md transition-shadow"
-                          onClick={() => window.open(`http://localhost:5000/${expandedIssueDetails.resolutionProof}`, '_blank')}
-                        />
-                      ) : (
-                        <>
-                          <p className="text-gray-500 text-sm italic mb-3">No resolution proof uploaded yet</p>
-                          {!isReadOnly && expandedIssueDetails.status === 'Resolved' && (
-                            <div className="space-y-2">
-                              <input
-                                type="file"
-                                accept="image/*"
-                                onChange={(e) => setResolutionProof(prev => ({ ...prev, [issue._id]: e.target.files?.[0] || null }))}
-                                className="w-full text-sm px-3 py-2 bg-white border border-gray-300 rounded-lg text-gray-900 focus:outline-none file:mr-3 file:py-1 file:bg-blue-600 file:text-white file:rounded file:border-0 file:cursor-pointer"
-                              />
-                              <button
-                                onClick={() => handleUploadResolutionProof(issue._id)}
-                                disabled={!resolutionProof[issue._id] || uploadingProof[issue._id]}
-                                className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed text-white px-3 py-2 rounded-lg text-sm font-semibold transition-all"
-                              >
-                                {uploadingProof[issue._id] ? '⏳ Uploading...' : '📤 Upload Proof'}
-                              </button>
-                            </div>
-                          )}
-                        </>
-                      )}
-                    </div>
+                        <button
+                          onClick={() => handleUploadResolutionProof(issue._id)}
+                          disabled={!resolutionProof[issue._id] || uploadingProof[issue._id]}
+                          className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed text-white px-3 py-2 rounded-lg text-sm font-semibold transition-all"
+                        >
+                          {uploadingProof[issue._id] ? 'Uploading…' : 'Upload Proof'}
+                        </button>
+                      </div>
+                    )}
                   </div>
 
                   {/* Comments Section */}
@@ -397,7 +421,6 @@ const ManageIssues = ({ onBack, isReadOnly = false }) => {
                     <h3 className="text-lg font-bold text-gray-900 mb-4">
                       Comments ({expandedIssueDetails.comments?.length || 0})
                     </h3>
-
                     <div className="space-y-3 mb-4 max-h-64 overflow-y-auto">
                       {expandedIssueDetails.comments && expandedIssueDetails.comments.length > 0 ? (
                         expandedIssueDetails.comments.map((c, idx) => (

@@ -160,6 +160,21 @@ export const utilityAPI = {
     apiClient.delete(`/utilities/${id}`),
 };
 
+// ==================== Facility Asset APIs ====================
+
+export const assetAPI = {
+  createAsset: (data) =>
+    apiClient.post('/assets', data),
+  getAllAssets: (params) =>
+    apiClient.get('/assets', { params }),
+  getAssetById: (id) =>
+    apiClient.get(`/assets/${id}`),
+  updateAsset: (id, data) =>
+    apiClient.put(`/assets/${id}`, data),
+  deleteAsset: (id) =>
+    apiClient.delete(`/assets/${id}`),
+};
+
 // ==================== Lab APIs ====================
 
 export const labAPI = {
