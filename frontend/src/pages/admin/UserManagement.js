@@ -10,12 +10,17 @@ const UserManagement = ({ onBack }) => {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [updateLoading, setUpdateLoading] = useState(false);
-  const [filterRole, setFilterRole] = useState('');
+  const [filterRole, setFilterRole] = useState('admin'); // Default: Show only Admin users
   const [searchQuery, setSearchQuery] = useState('');
+  const [studentSearchQuery, setStudentSearchQuery] = useState(''); // Search for students
   const [showForm, setShowForm] = useState(false);
   const [showEditForm, setShowEditForm] = useState(false);
   const [editingUserId, setEditingUserId] = useState(null);
   const [hodUser, setHodUser] = useState(null);
+  const [selectedClassroomId, setSelectedClassroomId] = useState(null); // For Students view
+  const [classroomStudents, setClassroomStudents] = useState([]); // Students from selected classroom
+  const [loadingStudents, setLoadingStudents] = useState(false);
+  const [classroomStudentCounts, setClassroomStudentCounts] = useState({}); // Cache for student counts
   // Create form state - role-based
   const [formData, setFormData] = useState({
     role: '', // Must select role first
@@ -79,6 +84,57 @@ const UserManagement = ({ onBack }) => {
       // Classrooms are optional for the form
     }
   };
+
+  const preloadClassroomStudentCounts = async () => {
+    try {
+      const counts = {};
+      for (const classroom of classrooms) {
+        try {
+          const response = await classroomAPI.getClassroomStudents(classroom._id);
+          const students = response.data.data || [];
+          counts[classroom._id] = students.length;
+        } catch (err) {
+          counts[classroom._id] = 0;
+        }
+      }
+      setClassroomStudentCounts(counts);
+    } catch (err) {
+      console.error('Failed to preload classroom student counts:', err);
+    }
+  };
+
+  // Preload student counts when entering Students view
+  useEffect(() => {
+    if (filterRole === 'student' && classrooms.length > 0) {
+      preloadClassroomStudentCounts();
+    }
+  }, [filterRole, classrooms]);
+
+  const fetchClassroomStudents = async (classroomId) => {
+    setLoadingStudents(true);
+    try {
+      const response = await classroomAPI.getClassroomStudents(classroomId);
+      const students = response.data.data || [];
+      setClassroomStudents(students);
+      // Cache the student count for the classroom card
+      setClassroomStudentCounts(prev => ({
+        ...prev,
+        [classroomId]: students.length
+      }));
+    } catch (err) {
+      setError(err.response?.data?.message || 'Failed to fetch classroom students');
+      setClassroomStudents([]);
+    } finally {
+      setLoadingStudents(false);
+    }
+  };
+
+  useEffect(() => {
+    // When classroom is selected, fetch its students
+    if (selectedClassroomId) {
+      fetchClassroomStudents(selectedClassroomId);
+    }
+  }, [selectedClassroomId]);
 
   useEffect(() => {
     fetchUsers();
@@ -517,65 +573,319 @@ const UserManagement = ({ onBack }) => {
       {/* Filters */}
       <div className="bg-white rounded-lg shadow-md p-6 mb-8 border border-gray-200">
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <div>
-            <label className="block text-sm font-semibold text-gray-900 mb-2">Search Users</label>
-            <input
-              type="text"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search by name or email..."
-              className="w-full px-4 py-3 bg-white border border-gray-300 rounded-lg text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
-            />
-          </div>
-          <div>
+          {/* Show search only for Admin and Faculty views */}
+          {filterRole !== 'student' && (
+            <div>
+              <label className="block text-sm font-semibold text-gray-900 mb-2">Search Users</label>
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Search by name or email..."
+                className="w-full px-4 py-3 bg-white border border-gray-300 rounded-lg text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
+              />
+            </div>
+          )}
+          <div className={filterRole !== 'student' ? '' : 'sm:col-span-2'}>
             <label className="block text-sm font-semibold text-gray-900 mb-2">Filter by Role</label>
             <select
               value={filterRole}
-              onChange={(e) => setFilterRole(e.target.value)}
+              onChange={(e) => {
+                setFilterRole(e.target.value);
+                setSelectedClassroomId(null); // Reset classroom selection when role changes
+                setSearchQuery(''); // Reset search
+                setStudentSearchQuery(''); // Reset student search
+              }}
               className="w-full px-4 py-3 bg-white border border-gray-300 rounded-lg text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
             >
-              <option value="">All Roles</option>
               <option value="admin">Admin</option>
               <option value="faculty">Faculty</option>
-              <option value="student">Student</option>
+              <option value="student">Students</option>
             </select>
           </div>
         </div>
       </div>
 
-      {/* Current HOD Display */}
-      {hodUser && (
-        <div className="bg-indigo-50 border-l-4 border-indigo-600 rounded-lg p-6 mb-8 shadow-sm">
-          <h3 className="text-lg font-bold text-indigo-900 mb-3">👨‍💼 Head of Department</h3>
-          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-            <div>
-              <p className="text-indigo-900 font-semibold text-lg">{hodUser.name}</p>
-              <p className="text-indigo-700">{hodUser.email}</p>
-              <span className={`inline-block mt-2 px-3 py-1 rounded-full text-xs font-semibold ${getRoleBadgeColor(hodUser.role)}`}>
-                {hodUser.role.toUpperCase()}
-              </span>
-            </div>
-            <button
-              onClick={() => handleOpenEditForm(hodUser)}
-              className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg font-semibold transition-all"
-            >
-              ✎ Edit Basic Info
-            </button>
+      {/* Classroom Selection View - Only for Students */}
+      {filterRole === 'student' && !selectedClassroomId && (
+        <div className="bg-white rounded-lg shadow-md p-6 mb-8 border border-gray-200">
+          <h2 className="text-xl font-bold text-gray-900 mb-4">Select Classroom</h2>
+          <p className="text-gray-600 mb-6">Choose a classroom to view its students</p>
+          
+          {/* Search Bar for Classrooms */}
+          <div className="mb-6">
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Search classrooms by department, year, or section..."
+              className="w-full px-4 py-3 bg-white border border-gray-300 rounded-lg text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
+            />
           </div>
+          
+          {classrooms.length === 0 ? (
+            <div className="text-center py-8 bg-gray-50 rounded-lg">
+              <p className="text-gray-500">No classrooms available</p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              {classrooms.filter(classroom => {
+                const query = searchQuery.toLowerCase();
+                return (
+                  classroom.department.toLowerCase().includes(query) ||
+                  (classroom.year && classroom.year.toString().includes(query)) ||
+                  (classroom.section && classroom.section.toLowerCase().includes(query))
+                );
+              }).length === 0 ? (
+                <div className="col-span-full text-center py-8 bg-gray-50 rounded-lg">
+                  <p className="text-gray-500">No classrooms match your search</p>
+                </div>
+              ) : (
+                classrooms.filter(classroom => {
+                  const query = searchQuery.toLowerCase();
+                  return (
+                    classroom.department.toLowerCase().includes(query) ||
+                    (classroom.year && classroom.year.toString().includes(query)) ||
+                    (classroom.section && classroom.section.toLowerCase().includes(query))
+                  );
+                }).map(classroom => (
+                  <button
+                    key={classroom._id}
+                    onClick={() => setSelectedClassroomId(classroom._id)}
+                    className="p-4 border-2 border-gray-300 rounded-lg hover:border-blue-500 hover:bg-blue-50 transition-all duration-300 text-left"
+                  >
+                    <h3 className="font-bold text-gray-900 mb-2">{classroom.department}</h3>
+                    <div className="text-sm text-gray-600">
+                      <p>Year {classroom.year}</p>
+                      <p>Section {classroom.section}</p>
+                      <p className="mt-2 text-xs font-semibold text-blue-600">
+                        {classroomStudentCounts[classroom._id] ?? 0} students
+                      </p>
+                    </div>
+                  </button>
+                )))}
+            </div>
+          )}
         </div>
       )}
 
-      {/* User List */}
+      {/* Back Button - For Students View */}
+      {filterRole === 'student' && selectedClassroomId && (
+        <button
+          onClick={() => {
+            setSelectedClassroomId(null);
+            setStudentSearchQuery(''); // Reset student search when going back
+          }}
+          className="mb-4 inline-flex items-center gap-2 text-blue-600 hover:text-blue-700 font-semibold transition-colors"
+        >
+          <span className="text-xl">←</span>
+          <span>Back to Classrooms</span>
+        </button>
+      )}
+
+      {/* User List or Students List */}
       {loading ? (
         <div className="text-center py-12">
           <div className="w-12 h-12 border-4 border-blue-200 border-t-blue-600 rounded-full animate-spin mx-auto"></div>
-          <p className="text-gray-500 mt-4 font-medium">Loading users...</p>
+          <p className="text-gray-500 mt-4 font-medium">
+            {filterRole === 'student' ? 'Loading students...' : 'Loading users...'}
+          </p>
+        </div>
+      ) : filterRole === 'student' && selectedClassroomId ? (
+        // STUDENTS VIEW - Show students from selected classroom
+        <div>
+          {/* Search Bar for Students */}
+          <div className="bg-white rounded-lg shadow-md p-6 mb-8 border border-gray-200">
+            <label className="block text-sm font-semibold text-gray-900 mb-2">Search Students</label>
+            <input
+              type="text"
+              value={studentSearchQuery}
+              onChange={(e) => setStudentSearchQuery(e.target.value)}
+              placeholder="Search by name, email, or registration number..."
+              className="w-full px-4 py-3 bg-white border border-gray-300 rounded-lg text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
+            />
+          </div>
+
+          {loadingStudents ? (
+            <div className="text-center py-12">
+              <div className="w-12 h-12 border-4 border-blue-200 border-t-blue-600 rounded-full animate-spin mx-auto"></div>
+              <p className="text-gray-500 mt-4 font-medium">Loading students...</p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 gap-4">
+              {classroomStudents.filter(student => {
+                const query = studentSearchQuery.toLowerCase();
+                return (
+                  student.name.toLowerCase().includes(query) ||
+                  student.email.toLowerCase().includes(query) ||
+                  (student.registrationNumber && student.registrationNumber.toLowerCase().includes(query))
+                );
+              }).length === 0 ? (
+                <div className="text-center py-12 bg-gray-50 rounded-lg border border-gray-200">
+                  <p className="text-gray-500 text-lg">
+                    {classroomStudents.length === 0 
+                      ? 'No students found in this classroom' 
+                      : 'No students match your search'}
+                  </p>
+                </div>
+              ) : (
+                classroomStudents.filter(student => {
+                  const query = studentSearchQuery.toLowerCase();
+                  return (
+                    student.name.toLowerCase().includes(query) ||
+                    student.email.toLowerCase().includes(query) ||
+                    (student.registrationNumber && student.registrationNumber.toLowerCase().includes(query))
+                  );
+                }).map(student => (
+                  <div key={student._id} className="bg-white rounded-lg shadow-sm p-6 border border-gray-200 hover:shadow-md transition-all duration-300">
+                    <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                      <div className="flex-1">
+                        <h3 className="text-lg font-bold text-gray-900 mb-2">{student.name}</h3>
+                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 text-sm">
+                          <div>
+                            <p className="text-gray-500 text-xs font-semibold">Email</p>
+                            <p className="text-gray-900 font-medium">{student.email}</p>
+                          </div>
+                          <div>
+                            <p className="text-gray-500 text-xs font-semibold">Reg. Number</p>
+                            <p className="text-gray-900 font-medium">{student.registrationNumber || '—'}</p>
+                          </div>
+                          <div>
+                            <p className="text-gray-500 text-xs font-semibold">Course</p>
+                            <p className="text-gray-900 font-medium">{student.courseType || '—'}</p>
+                          </div>
+                          <div>
+                            <p className="text-gray-500 text-xs font-semibold">Status</p>
+                            <span className={`inline-block px-3 py-1 rounded text-xs font-semibold ${
+                              student.isActive
+                                ? 'bg-green-100 text-green-700'
+                                : 'bg-red-100 text-red-700'
+                            }`}>
+                              {student.isActive ? 'Active' : 'Inactive'}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                      <div className="flex gap-2 flex-wrap">
+                        <button
+                          onClick={() => handleOpenEditForm(student)}
+                          className="px-4 py-2 rounded-lg font-semibold shadow-sm hover:shadow-md transition-all duration-300 bg-blue-600 hover:bg-blue-700 text-white"
+                        >
+                          ✎ Edit
+                        </button>
+                        <button
+                          onClick={() => handleResetPassword(student._id, student.name)}
+                          className="px-4 py-2 rounded-lg font-semibold shadow-sm hover:shadow-md transition-all duration-300 bg-orange-500 hover:bg-orange-600 text-white"
+                        >
+                          🔄 Reset Password
+                        </button>
+                        <button
+                          onClick={() => handleToggleActive(student._id, student.isActive)}
+                          className={`px-4 py-2 rounded-lg font-semibold shadow-sm hover:shadow-md transition-all duration-300 ${
+                            student.isActive
+                              ? 'bg-red-500 hover:bg-red-600 text-white'
+                              : 'bg-blue-600 hover:bg-blue-700 text-white'
+                          }`}
+                        >
+                          {student.isActive ? 'Deactivate' : 'Activate'}
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Inline Edit Form */}
+                    {editingUserId === student._id && showEditForm && (
+                      <div className="mt-6 pt-6 border-t border-gray-300 bg-gray-50 p-6 rounded-lg">
+                        <h3 className="text-lg font-bold text-gray-900 mb-4">Edit Student Details</h3>
+                        <form onSubmit={handleUpdateUser} className="space-y-4">
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            <div>
+                              <label className="block text-sm font-semibold text-gray-900 mb-2">Name *</label>
+                              <input
+                                type="text"
+                                value={editFormData.name}
+                                onChange={(e) => setEditFormData({ ...editFormData, name: e.target.value })}
+                                required
+                                placeholder="Full name"
+                                className="w-full px-4 py-2 bg-white border border-gray-300 rounded-lg text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                              />
+                            </div>
+                            <div>
+                              <label className="block text-sm font-semibold text-gray-900 mb-2">Email *</label>
+                              <input
+                                type="email"
+                                value={editFormData.email}
+                                onChange={(e) => setEditFormData({ ...editFormData, email: e.target.value })}
+                                required
+                                placeholder="user@college.edu"
+                                className="w-full px-4 py-2 bg-white border border-gray-300 rounded-lg text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                              />
+                            </div>
+                            <div>
+                              <label className="block text-sm font-semibold text-gray-900 mb-2">Registration Number *</label>
+                              <input
+                                type="text"
+                                value={editFormData.registrationNumber}
+                                onChange={(e) => setEditFormData({ ...editFormData, registrationNumber: e.target.value })}
+                                required
+                                placeholder="e.g., CS2021001"
+                                className="w-full px-4 py-2 bg-white border border-gray-300 rounded-lg text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                              />
+                            </div>
+                            <div>
+                              <label className="block text-sm font-semibold text-gray-900 mb-2">Course Type</label>
+                              <select
+                                value={editFormData.courseType}
+                                onChange={(e) => setEditFormData({ ...editFormData, courseType: e.target.value })}
+                                className="w-full px-4 py-2 bg-white border border-gray-300 rounded-lg text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                              >
+                                <option value="BTech">BTech</option>
+                                <option value="MTech">MTech</option>
+                              </select>
+                            </div>
+                          </div>
+                          <div className="flex gap-3 pt-2">
+                            <button
+                              type="submit"
+                              disabled={updateLoading}
+                              className={`flex-1 font-semibold py-2 px-4 rounded-lg shadow-sm transition-all duration-300 ${
+                                updateLoading 
+                                  ? 'bg-gray-400 text-white cursor-not-allowed' 
+                                  : 'bg-blue-600 hover:bg-blue-700 text-white hover:shadow-md'
+                              }`}
+                            >
+                              {updateLoading ? '⏳ Saving...' : 'Save Changes'}
+                            </button>
+                            <button
+                              type="button"
+                              disabled={updateLoading}
+                              onClick={() => {
+                                setEditingUserId(null);
+                                setShowEditForm(false);
+                              }}
+                              className={`flex-1 font-semibold py-2 px-4 rounded-lg shadow-sm transition-all duration-300 ${
+                                updateLoading
+                                  ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                                  : 'bg-gray-200 hover:bg-gray-300 text-gray-900 hover:shadow-md'
+                              }`}
+                            >
+                              Cancel
+                            </button>
+                          </div>
+                        </form>
+                      </div>
+                    )}
+                  </div>
+                ))
+              )}
+            </div>
+          )}
         </div>
       ) : (
+        // ADMIN/FACULTY VIEW - Show users list
         <div className="grid grid-cols-1 gap-4">
           {users.length === 0 ? (
             <div className="text-center py-12 bg-gray-50 rounded-lg border border-gray-200">
-              <p className="text-gray-500 text-lg">No users found</p>
+              <p className="text-gray-500 text-lg">No {filterRole === 'admin' ? 'admin' : 'faculty'} users found</p>
             </div>
           ) : (
             users.map(user => (
@@ -595,12 +905,8 @@ const UserManagement = ({ onBack }) => {
                         </span>
                       </div>
                       <div>
-                        <p className="text-gray-500 text-xs font-semibold">
-                          {user.role === 'student' ? 'Reg. Number' : 'Teacher ID'}
-                        </p>
-                        <p className="text-gray-900 font-medium">
-                          {user.registrationNumber || user.teacherId || '—'}
-                        </p>
+                        <p className="text-gray-500 text-xs font-semibold">Teacher ID</p>
+                        <p className="text-gray-900 font-medium">{user.teacherId || '—'}</p>
                       </div>
                       <div>
                         <p className="text-gray-500 text-xs font-semibold">Status</p>
@@ -613,11 +919,6 @@ const UserManagement = ({ onBack }) => {
                         </span>
                       </div>
                     </div>
-                    {user.role === 'student' && user.classroomId && (
-                      <div className="mt-3 text-sm text-gray-600">
-                        <span className="font-semibold">Classroom:</span> {user.classroomId.department} - Year {user.classroomId.year} Section {user.classroomId.section}
-                      </div>
-                    )}
                   </div>
                   <div className="flex gap-2 flex-wrap">
                     {user.role === 'hod' ? (
@@ -692,7 +993,6 @@ const UserManagement = ({ onBack }) => {
                       ) : (
                         // Full role-based edit form for non-HOD
                         <div className="space-y-4">
-                          {/* TASK 5: Show role with option to change (triggers field reset) */}
                           <div className="p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
                             <p className="text-xs font-semibold text-yellow-900 mb-2">⚠️ Warning: Changing role will remove unrelated fields</p>
                             <select

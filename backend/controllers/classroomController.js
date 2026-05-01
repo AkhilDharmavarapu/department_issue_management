@@ -1,6 +1,7 @@
 const Classroom = require('../models/Classroom');
 const Room = require('../models/Room');
 const User = require('../models/User');
+const { getRoomsForBlock } = require('../config/roomsConfig');
 
 /**
  * Create a new classroom
@@ -51,29 +52,26 @@ exports.createClassroom = async (req, res, next) => {
       });
     }
 
-    // ==================== VALIDATE AND ASSIGN ROOM ====================
-    // Check if room exists and is available
-    const roomDoc = await Room.findById(room);
-    if (!roomDoc) {
-      return res.status(404).json({
-        success: false,
-        message: 'Room not found',
-      });
-    }
-
-    // Check if room is already assigned to another classroom
-    if (roomDoc.assignedTo) {
-      return res.status(409).json({
-        success: false,
-        message: `Room ${roomDoc.number} is already assigned to another classroom`,
-      });
-    }
-
-    // Validate block matches room's block
-    if (roomDoc.block !== block) {
+    // ==================== VALIDATE ROOM ====================
+    // MODIFIED: Room is now a string (e.g., 'A41', 'A02') instead of ObjectID
+    // Simply validate that room is provided and is a string
+    if (!room || typeof room !== 'string') {
       return res.status(400).json({
         success: false,
-        message: `Selected room belongs to ${roomDoc.block}, but you selected ${block}`,
+        message: 'Room must be a valid string (e.g., A41, GFCL1)',
+      });
+    }
+
+    // Check if another classroom is already assigned to this room
+    const existingRoomAssignment = await Classroom.findOne({
+      block,
+      room,
+    });
+
+    if (existingRoomAssignment) {
+      return res.status(409).json({
+        success: false,
+        message: `Room ${room} in ${block} is already assigned to another classroom`,
       });
     }
 
@@ -113,11 +111,8 @@ exports.createClassroom = async (req, res, next) => {
       facultyList: facultyList || [],
     });
 
-    // Assign room to this classroom
-    roomDoc.assignedTo = classroom._id;
-    await roomDoc.save();
-
-    await classroom.populate(['cr', 'lr', 'facultyList', 'room']);
+    // MODIFIED: Room is stored as a string, no need to update Room document
+    await classroom.populate(['cr', 'lr', 'facultyList']);
 
     res.status(201).json({
       success: true,
@@ -146,7 +141,7 @@ exports.getAllClassrooms = async (req, res, next) => {
     if (department) filter.department = department;
 
     const classrooms = await Classroom.find(filter)
-      .populate(['cr', 'lr', 'facultyList', 'room'])
+      .populate(['cr', 'lr', 'facultyList'])
       .sort({ course: 1, specialization: 1, year: 1, section: 1 });
 
     res.status(200).json({
@@ -224,40 +219,28 @@ exports.updateClassroom = async (req, res, next) => {
     }
 
     // ==================== HANDLE ROOM CHANGE ====================
-    let newRoom = null;
-    if (room && !classroom.room?.equals(room)) {
+    // MODIFIED: Room is now a string instead of ObjectID
+    if (room && room !== classroom.room) {
       // User is changing the room
-      newRoom = await Room.findById(room);
-      if (!newRoom) {
-        return res.status(404).json({
-          success: false,
-          message: 'Room not found',
-        });
-      }
-
-    // Check if new room is already assigned
-      if (newRoom.assignedTo && !newRoom.assignedTo.equals(classroom._id)) {
-        return res.status(409).json({
-          success: false,
-          message: `Room ${newRoom.number} is already assigned to another classroom`,
-        });
-      }
-
-      // Validate block matches room's block
-      if (newRoom.block !== (block || classroom.block)) {
+      if (typeof room !== 'string') {
         return res.status(400).json({
           success: false,
-          message: `Selected room belongs to ${newRoom.block}, but you selected ${block || classroom.block}`,
+          message: 'Room must be a valid string (e.g., A41, GFCL1)',
         });
       }
 
-      // Clear assignment of old room
-      if (classroom.room) {
-        const oldRoom = await Room.findById(classroom.room);
-        if (oldRoom) {
-          oldRoom.assignedTo = null;
-          await oldRoom.save();
-        }
+      // Check if new room is already assigned to another classroom
+      const existingRoomAssignment = await Classroom.findOne({
+        _id: { $ne: classroom._id },
+        block: block || classroom.block,
+        room,
+      });
+
+      if (existingRoomAssignment) {
+        return res.status(409).json({
+          success: false,
+          message: `Room ${room} in ${block || classroom.block} is already assigned to another classroom`,
+        });
       }
     }
 
@@ -299,14 +282,9 @@ exports.updateClassroom = async (req, res, next) => {
     if (lr !== undefined) classroom.lr = lr || null;
     if (facultyList) classroom.facultyList = facultyList;
 
-    // Assign new room if changed
-    if (newRoom) {
-      newRoom.assignedTo = classroom._id;
-      await newRoom.save();
-    }
-
+    // MODIFIED: Room is stored as a string, no need to update Room document
     await classroom.save();
-    await classroom.populate(['cr', 'lr', 'facultyList', 'room']);
+    await classroom.populate(['cr', 'lr', 'facultyList']);
 
     res.status(200).json({
       success: true,
@@ -355,15 +333,7 @@ exports.deleteClassroom = async (req, res, next) => {
       });
     }
 
-    // Clear room assignment
-    if (classroom.room) {
-      const room = await Room.findById(classroom.room);
-      if (room) {
-        room.assignedTo = null;
-        await room.save();
-      }
-    }
-
+    // MODIFIED: Room is stored as a string, no need to clear Room document assignment
     await Classroom.findByIdAndDelete(req.params.id);
 
     res.status(200).json({
@@ -400,21 +370,37 @@ exports.getAvailableRooms = async (req, res, next) => {
       });
     }
 
-    // Find rooms: unassigned OR assigned to current classroom
-    const rooms = await Room.find({
-      block,
-      isActive: true,
-      $or: [
-        { assignedTo: null },
-        // If editing a classroom, also show its current room
-        ...(excludeClassroomId ? [{ assignedTo: excludeClassroomId }] : []),
-      ],
-    }).sort({ number: 1 });
+    // MODIFIED: Use predefined room config instead of Room model
+    // Get all predefined rooms for this block
+    const allRoomsForBlock = getRoomsForBlock(block);
+    
+    if (!allRoomsForBlock || allRoomsForBlock.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'No rooms defined for this block',
+      });
+    }
+
+    // Find classrooms that already have rooms assigned in this block
+    const assignedRooms = await Classroom.find(
+      {
+        block,
+        room: { $in: allRoomsForBlock },
+        ...(excludeClassroomId && { _id: { $ne: excludeClassroomId } }),
+      },
+      { room: 1 }
+    );
+
+    // Get list of already-assigned room strings
+    const assignedRoomSet = new Set(assignedRooms.map(c => c.room));
+
+    // Return available rooms (predefined rooms minus assigned ones)
+    const availableRooms = allRoomsForBlock.filter(room => !assignedRoomSet.has(room));
 
     res.status(200).json({
       success: true,
-      count: rooms.length,
-      data: rooms,
+      count: availableRooms.length,
+      data: availableRooms,
     });
   } catch (error) {
     next(error);
@@ -422,158 +408,37 @@ exports.getAvailableRooms = async (req, res, next) => {
 };
 
 /**
- * TASK 1-2: Get students for a specific classroom
- * Returns ONLY students assigned to that classroom
- * Admin only
+ * Get students for a specific classroom.
+ * Classroom schema has no students array — students reference their classroom
+ * via User.classroomId (ObjectId ref to Classroom).
+ * Query: User.find({ classroomId: classroom._id, role: 'student' })
+ * Admin only.
  */
 exports.getClassroomStudents = async (req, res, next) => {
   try {
-    const mongoose = require('mongoose');
-    
-    // ==================== TASK 1: LOG req.params.id ====================
-    const classroomIdParam = req.params.id;
-    console.log('\n╔════════════════════════════════════════════════════════════╗');
-    console.log('║ TASK 1: DEBUG CLASSROOM STUDENTS MAPPING                    ║');
-    console.log('╚════════════════════════════════════════════════════════════╝');
-    console.log('[req.params.id] Value:', classroomIdParam);
-    console.log('[req.params.id] Type:', typeof classroomIdParam);
-    console.log('[req.params.id] Is Valid ObjectId?', mongoose.Types.ObjectId.isValid(classroomIdParam));
-
-    // Verify classroom exists
-    const classroom = await Classroom.findById(classroomIdParam);
+    // 1. Verify classroom exists
+    const classroom = await Classroom.findById(req.params.id);
     if (!classroom) {
-      console.log('[ERROR] Classroom not found with ID:', classroomIdParam);
       return res.status(404).json({
         success: false,
         message: 'Classroom not found',
       });
     }
 
-    console.log('[Classroom._id] Value:', classroom._id.toString());
-    console.log('[Classroom._id] Type:', typeof classroom._id);
-    console.log('[Classroom._id] ObjectId?', classroom._id instanceof mongoose.Types.ObjectId);
-
-    // ==================== TASK 1: LOG ALL STUDENT classroomId VALUES ====================
-    console.log('\n--- FETCHING ALL STUDENTS WITH DETAILED classroomId INFO ---');
-    
-    const allStudentsRaw = await User.find({ role: 'student' })
-      .select('name registrationNumber classroomId');
-    
-    console.log(`[Total Students in DB]: ${allStudentsRaw.length}`);
-    
-    if (allStudentsRaw.length > 0) {
-      console.log('\n[Sample of student classroomId VALUES & TYPES]:');
-      allStudentsRaw.slice(0, 5).forEach((student, idx) => {
-        const cid = student.classroomId;
-        const type = cid ? typeof cid : 'null/undefined';
-        const isObjectId = cid instanceof mongoose.Types.ObjectId;
-        const isString = typeof cid === 'string';
-        const value = cid ? cid.toString() : 'null/undefined';
-        
-        console.log(`  [${idx + 1}] Name: ${student.name} | RegNo: ${student.registrationNumber}`);
-        console.log(`      classroomId: ${value}`);
-        console.log(`      Type: ${type} | ObjectId? ${isObjectId} | String? ${isString}`);
-      });
-    }
-
-    // ==================== TASK 2: FORCE MATCHING TYPES ====================
-    console.log('\n--- TASK 2: ATTEMPTING QUERIES WITH BOTH TYPES ---');
-
-    // Try as ObjectId
-    const convertedId = new mongoose.Types.ObjectId(classroomIdParam);
-    console.log('[Query 1] Using ObjectId:', convertedId);
-    const studentsAsObjectId = await User.find({
+    // 2. Query students assigned to this classroom
+    const students = await User.find({
+      classroomId: classroom._id,
       role: 'student',
-      classroomId: convertedId,
-    }).select('name registrationNumber classroomId');
-    console.log(`[Query 1 Result] Found ${studentsAsObjectId.length} students`);
-
-    // Try as String
-    console.log('[Query 2] Using String:', classroomIdParam);
-    const studentsAsString = await User.find({
-      role: 'student',
-      classroomId: classroomIdParam,
-    }).select('name registrationNumber classroomId');
-    console.log(`[Query 2 Result] Found ${studentsAsString.length} students`);
-
-    // Use whichever returned results
-    let students = studentsAsObjectId.length > 0 ? studentsAsObjectId : studentsAsString;
-    
-    if (studentsAsObjectId.length > 0 && studentsAsString.length === 0) {
-      console.log('✅ [DIAGNOSIS] classroomId stored as ObjectId - Query 1 worked');
-    } else if (studentsAsString.length > 0 && studentsAsObjectId.length === 0) {
-      console.log('✅ [DIAGNOSIS] classroomId stored as STRING - Query 2 worked');
-    } else if (studentsAsObjectId.length > 0 && studentsAsString.length > 0) {
-      console.log('⚠️  [DIAGNOSIS] Both queries returned results - possible data inconsistency');
-      students = studentsAsObjectId; // Prefer ObjectId
-    } else {
-      console.log('❌ [DIAGNOSIS] No students found with either query type');
-    }
-
-    // ==================== TASK 1: MANUAL COMPARISON ====================
-    console.log('\n--- TASK 1: MANUAL COMPARISON ---');
-    console.log(`[Classroom ID (from param)]: ${classroomIdParam}`);
-    console.log(`[Classroom ID (from DB)]: ${classroom._id.toString()}`);
-    console.log(`[Match?] ${classroomIdParam === classroom._id.toString() ? '✅ YES' : '❌ NO'}`);
-
-    if (students.length > 0) {
-      console.log('\n[Sample Matches]:');
-      students.slice(0, 3).forEach((student, idx) => {
-        const match = student.classroomId.toString() === classroom._id.toString();
-        console.log(`  [${idx + 1}] ${student.name}`);
-        console.log(`      Student classroomId: ${student.classroomId.toString()}`);
-        console.log(`      Classroom._id: ${classroom._id.toString()}`);
-        console.log(`      Match? ${match ? '✅' : '❌'}`);
-      });
-    }
-
-    // ==================== TASK 4: DATA CONSISTENCY CHECK ====================
-    console.log('\n--- TASK 4: DATA CONSISTENCY CHECK ---');
-    
-    // Check data types in database
-    const typeCheck = await User.aggregate([
-      { $match: { role: 'student' } },
-      {
-        $group: {
-          _id: { $type: '$classroomId' },
-          count: { $sum: 1 },
-          samples: { $push: { name: '$name', classroomId: '$classroomId' } },
-        },
-      },
-    ]);
-
-    console.log('[classroomId Field Types in Database]:');
-    typeCheck.forEach(record => {
-      console.log(`  Type: ${record._id}, Count: ${record.count}`);
-      if (record.samples.length > 0) {
-        console.log(`    Sample: ${record.samples[0].classroomId} (from ${record.samples[0].name})`);
-      }
-    });
-
-    console.log('\n╔════════════════════════════════════════════════════════════╗');
-    console.log('║ END DEBUG OUTPUT                                            ║');
-    console.log('╚════════════════════════════════════════════════════════════╝\n');
-
-    // Return students sorted by name
-    students = students.sort((a, b) => a.name.localeCompare(b.name));
+    })
+      .select('name email registrationNumber')
+      .sort({ name: 1 });
 
     res.status(200).json({
       success: true,
       count: students.length,
-      debug: {
-        classroomIdParam,
-        classroomIdFromDb: classroom._id.toString(),
-        classroomIdMatch: classroomIdParam === classroom._id.toString(),
-        typeMatches: {
-          queryObjectId: studentsAsObjectId.length,
-          queryString: studentsAsString.length,
-        },
-      },
       data: students,
     });
   } catch (error) {
-    console.error('[CLASSROOM STUDENTS] ERROR:', error.message);
-    console.error(error);
     next(error);
   }
 };

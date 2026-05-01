@@ -44,10 +44,11 @@ const classroomSchema = new mongoose.Schema(
     },
 
     // Room Assignment
+    // MODIFIED: Changed from ObjectId to String to store room names like 'A41', 'GFCL1'
     room: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: 'Room',
+      type: String,
       required: [true, 'Please assign a room'],
+      trim: true,
     },
 
     // Department/Program Info

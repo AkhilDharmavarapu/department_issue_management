@@ -1,15 +1,23 @@
-import React, { useState, useEffect, useMemo } from 'react';
-import { assetAPI } from '../../services/api';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import { assetAPI, issueAPI } from '../../services/api';
+import { getRoomsForApiBlock } from '../../config/roomsConfig';
+import { ASSET_TYPES } from '../../config/assetTypesConfig';
 
 // ──── Constants ────
 
-const ASSET_TYPES = [
-  'Bench', 'Fan', 'LED Board', 'Projector', 'AC',
-  'Whiteboard', 'Smart Board', 'Computer', 'Chair', 'Desk',
-  'Speaker', 'CCTV', 'Router', 'Printer', 'UPS', 'Other',
-];
+const API_BLOCKS = ['Algorithm', 'Department'];
 
-const BLOCKS = ['Department', 'Algorithm'];
+const BLOCK_DISPLAY_LABELS = {
+  'Algorithm': 'Algorithm Block',
+  'Department': 'Main Block',
+};
+
+const displayBlock = (apiBlock) => BLOCK_DISPLAY_LABELS[apiBlock] || apiBlock;
+
+const normalize = (val) => (val || '').toString().trim().toUpperCase();
+
+const makeKey = (assetType, block, room) =>
+  `${normalize(assetType)}|${normalize(block)}|${normalize(room)}`;
 
 const INITIAL_FORM = {
   type: '',
@@ -18,10 +26,39 @@ const INITIAL_FORM = {
   total: '',
 };
 
+// ──── Issue Count Aggregation ────
+
+const isActiveIssue = (issue) => normalize(issue.status) !== 'RESOLVED';
+
+const buildIssueCountMap = (issues) => {
+  const map = new Map();
+  issues.filter(isActiveIssue).forEach(issue => {
+    const key = makeKey(issue.assetType, issue.block, issue.room);
+    const entry = map.get(key) || { damaged: 0, maintenance: 0 };
+    const normType = normalize(issue.issueType);
+    if (normType === 'DAMAGED') entry.damaged += (issue.quantity || 0);
+    if (normType === 'MAINTENANCE') entry.maintenance += (issue.quantity || 0);
+    map.set(key, entry);
+  });
+  return map;
+};
+
+const enrichAsset = (asset, issueCountMap) => {
+  const key = makeKey(asset.type, asset.block, asset.room);
+  const counts = issueCountMap.get(key) || { damaged: 0, maintenance: 0 };
+  return {
+    ...asset,
+    damaged: counts.damaged,
+    maintenance: counts.maintenance,
+    working: Math.max(0, asset.total - counts.damaged - counts.maintenance),
+  };
+};
+
 // ──── Component ────
 
 const FacilityAssets = ({ onBack, isReadOnly = false }) => {
   const [assets, setAssets] = useState([]);
+  const [issues, setIssues] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
@@ -29,86 +66,131 @@ const FacilityAssets = ({ onBack, isReadOnly = false }) => {
   const [editingId, setEditingId] = useState(null);
   const [formData, setFormData] = useState({ ...INITIAL_FORM });
 
-  // ──── Filters (drives both analytics and list) ────
+  // ──── Filters (API block names internally) ────
   const [filterType, setFilterType] = useState('');
   const [filterBlock, setFilterBlock] = useState('');
   const [filterRoom, setFilterRoom] = useState('');
 
-  // Fetch all assets (backend filters by block; type/room filtered client-side for instant UX)
-  useEffect(() => {
-    fetchAssets();
-  }, [filterBlock]);
+  // ──── Data Fetching ────
 
-  // Reset room filter when block changes (rooms are block-dependent)
-  useEffect(() => {
-    setFilterRoom('');
-  }, [filterBlock]);
-
-  const fetchAssets = async () => {
+  const refreshData = useCallback(async () => {
     setLoading(true);
     try {
-      const params = {};
-      if (filterBlock) params.block = filterBlock;
-      const response = await assetAPI.getAllAssets(params);
-      setAssets(response.data.data);
+      const [assetRes, issueRes] = await Promise.all([
+        assetAPI.getAllAssets(filterBlock ? { block: filterBlock } : {}),
+        issueAPI.getAllIssues({ category: 'asset' }),
+      ]);
+      setAssets(assetRes.data.data);
+      setIssues(issueRes.data.data);
       setError('');
     } catch (err) {
-      setError(err.response?.data?.message || 'Failed to fetch assets');
+      setError(err.response?.data?.message || 'Failed to fetch data');
     } finally {
       setLoading(false);
     }
-  };
+  }, [filterBlock]);
 
-  // ──── Derived: Available rooms from current data ────
-  const availableRooms = useMemo(() => {
+  useEffect(() => { refreshData(); }, [refreshData]);
+
+  // Reset room filter when block changes
+  useEffect(() => { setFilterRoom(''); }, [filterBlock]);
+
+  // ──── Derived: Issue count map ────
+  const issueCountMap = useMemo(() => buildIssueCountMap(issues), [issues]);
+
+  // ──── Derived: Enriched assets ────
+  const enrichedAssets = useMemo(
+    () => assets.map(a => enrichAsset(a, issueCountMap)),
+    [assets, issueCountMap]
+  );
+
+  // ──── Derived: Available rooms for filter dropdown ────
+  const filterAvailableRooms = useMemo(() => {
+    if (filterBlock) return getRoomsForApiBlock(filterBlock);
     const rooms = new Set();
-    assets.forEach(a => rooms.add(a.room));
+    enrichedAssets.forEach(a => rooms.add(a.room));
     return Array.from(rooms).sort();
-  }, [assets]);
+  }, [enrichedAssets, filterBlock]);
 
-  // ──── Derived: Filtered assets (type + room applied client-side) ────
-  const filteredAssets = useMemo(() => {
-    return assets.filter(a => {
-      if (filterType && a.type !== filterType) return false;
-      if (filterRoom && a.room !== filterRoom) return false;
-      return true;
-    });
-  }, [assets, filterType, filterRoom]);
+  // ──── Derived: Form rooms (for add/edit form) ────
+  const formAvailableRooms = useMemo(() => {
+    if (!formData.block) return [];
+    return getRoomsForApiBlock(formData.block);
+  }, [formData.block]);
 
-  // ──── Derived: Context-driven analytics ────
+  // ──── Derived: Visible rooms structure ────
+  const visibleRooms = useMemo(() => {
+    if (filterRoom) {
+      // Always show selected room
+      const roomAssets = enrichedAssets.filter(a =>
+        normalize(a.room) === normalize(filterRoom) &&
+        (!filterBlock || normalize(a.block) === normalize(filterBlock)) &&
+        (!filterType || a.type === filterType)
+      );
+      const block = filterBlock || (roomAssets[0]?.block) || '';
+      return { [block]: { [filterRoom]: roomAssets } };
+    }
+
+    if (filterBlock) {
+      // Show all predefined rooms for this block
+      const allRoomsInBlock = getRoomsForApiBlock(filterBlock);
+      const result = { [filterBlock]: {} };
+      allRoomsInBlock.forEach(room => {
+        const roomAssets = enrichedAssets.filter(a =>
+          normalize(a.block) === normalize(filterBlock) &&
+          normalize(a.room) === normalize(room) &&
+          (!filterType || a.type === filterType)
+        );
+        result[filterBlock][room] = roomAssets;
+      });
+      return result;
+    }
+
+    // No block/room filter: only rooms with assets
+    const grouped = {};
+    enrichedAssets
+      .filter(a => !filterType || a.type === filterType)
+      .forEach(a => {
+        if (!grouped[a.block]) grouped[a.block] = {};
+        if (!grouped[a.block][a.room]) grouped[a.block][a.room] = [];
+        grouped[a.block][a.room].push(a);
+      });
+    return grouped;
+  }, [enrichedAssets, filterBlock, filterRoom, filterType]);
+
+  // ──── Derived: Analytics from visibleRooms ────
   const analytics = useMemo(() => {
-    const totalCount = filteredAssets.reduce((sum, a) => sum + a.total, 0);
-    const damagedCount = filteredAssets.reduce((sum, a) => sum + (a.damaged || 0), 0);
-    const maintenanceCount = filteredAssets.reduce((sum, a) => sum + (a.maintenance || 0), 0);
-    const workingCount = totalCount - damagedCount - maintenanceCount;
+    let totalCount = 0, damagedCount = 0, maintenanceCount = 0, assetRecords = 0;
+    Object.values(visibleRooms).forEach(rooms => {
+      Object.values(rooms).forEach(roomAssets => {
+        roomAssets.forEach(a => {
+          totalCount += a.total;
+          damagedCount += a.damaged;
+          maintenanceCount += a.maintenance;
+          assetRecords++;
+        });
+      });
+    });
+    const workingCount = Math.max(0, totalCount - damagedCount - maintenanceCount);
 
-    // Build scope label
     const scopeParts = [];
     scopeParts.push(filterType || 'All Asset Types');
-    scopeParts.push(filterBlock ? `${filterBlock} Block` : 'All Blocks');
+    scopeParts.push(filterBlock ? displayBlock(filterBlock) : 'All Blocks');
     scopeParts.push(filterRoom ? `Room ${filterRoom}` : 'All Rooms');
-    const scopeLabel = scopeParts.join('  ·  ');
 
-    return { totalCount, damagedCount, maintenanceCount, workingCount, scopeLabel };
-  }, [filteredAssets, filterType, filterBlock, filterRoom]);
+    return { totalCount, damagedCount, maintenanceCount, workingCount, scopeLabel: scopeParts.join('  ·  '), assetRecords };
+  }, [visibleRooms, filterType, filterBlock, filterRoom]);
 
-  // ──── Group filtered assets: block → room → assets ────
-  const groupedAssets = useMemo(() => {
-    return filteredAssets.reduce((acc, asset) => {
-      const blockKey = asset.block;
-      const roomKey = asset.room;
-      if (!acc[blockKey]) acc[blockKey] = {};
-      if (!acc[blockKey][roomKey]) acc[blockKey][roomKey] = [];
-      acc[blockKey][roomKey].push(asset);
-      return acc;
-    }, {});
-  }, [filteredAssets]);
-
-  // ──── Form handlers ────
+  // ──── Form handlers (preserved from existing) ────
 
   const handleChange = (e) => {
     const { name, value } = e.target;
-    setFormData(prev => ({ ...prev, [name]: value }));
+    setFormData(prev => {
+      const next = { ...prev, [name]: value };
+      // Reset room when block changes in form
+      if (name === 'block') next.room = '';
+      return next;
+    });
   };
 
   const handleSubmit = async (e) => {
@@ -131,7 +213,7 @@ const FacilityAssets = ({ onBack, isReadOnly = false }) => {
       setFormData({ ...INITIAL_FORM });
       setEditingId(null);
       setShowForm(false);
-      fetchAssets();
+      refreshData();
       setTimeout(() => setSuccess(''), 3000);
     } catch (err) {
       setError(err.response?.data?.message || 'Failed to save asset');
@@ -153,7 +235,7 @@ const FacilityAssets = ({ onBack, isReadOnly = false }) => {
     if (!window.confirm('Are you sure you want to delete this asset?')) return;
     try {
       await assetAPI.deleteAsset(id);
-      fetchAssets();
+      refreshData();
       setSuccess('Asset deleted');
       setTimeout(() => setSuccess(''), 3000);
     } catch (err) {
@@ -186,7 +268,7 @@ const FacilityAssets = ({ onBack, isReadOnly = false }) => {
   // ──── Status bar helper ────
 
   const StatusBar = ({ total, damaged, maintenance }) => {
-    const working = total - damaged - maintenance;
+    const working = Math.max(0, total - damaged - maintenance);
     const workingPct = total > 0 ? (working / total) * 100 : 0;
     const damagedPct = total > 0 ? (damaged / total) * 100 : 0;
     const maintPct = total > 0 ? (maintenance / total) * 100 : 0;
@@ -220,7 +302,7 @@ const FacilityAssets = ({ onBack, isReadOnly = false }) => {
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8">
         <div>
           <h1 className="text-3xl font-bold text-gray-900 mb-1">Facility Assets</h1>
-          <p className="text-gray-500 text-sm">Track assets by type, block, and room</p>
+          <p className="text-gray-500 text-sm">Room-centric asset tracking by block and room</p>
         </div>
         {!isReadOnly && (
           <button
@@ -262,6 +344,36 @@ const FacilityAssets = ({ onBack, isReadOnly = false }) => {
           )}
         </div>
         <div className="flex flex-wrap gap-4">
+          {/* Block */}
+          <div>
+            <label className="block text-xs font-semibold text-gray-500 mb-1">Block</label>
+            <select
+              value={filterBlock}
+              onChange={(e) => setFilterBlock(e.target.value)}
+              className={selectClass}
+            >
+              <option value="">All Blocks</option>
+              {API_BLOCKS.map(b => (
+                <option key={b} value={b}>{displayBlock(b)}</option>
+              ))}
+            </select>
+          </div>
+
+          {/* Room */}
+          <div>
+            <label className="block text-xs font-semibold text-gray-500 mb-1">Room</label>
+            <select
+              value={filterRoom}
+              onChange={(e) => setFilterRoom(e.target.value)}
+              className={selectClass}
+            >
+              <option value="">All Rooms</option>
+              {filterAvailableRooms.map(r => (
+                <option key={r} value={r}>{r}</option>
+              ))}
+            </select>
+          </div>
+
           {/* Asset Type */}
           <div>
             <label className="block text-xs font-semibold text-gray-500 mb-1">Asset Type</label>
@@ -276,56 +388,24 @@ const FacilityAssets = ({ onBack, isReadOnly = false }) => {
               ))}
             </select>
           </div>
-
-          {/* Block */}
-          <div>
-            <label className="block text-xs font-semibold text-gray-500 mb-1">Block</label>
-            <select
-              value={filterBlock}
-              onChange={(e) => setFilterBlock(e.target.value)}
-              className={selectClass}
-            >
-              <option value="">All Blocks</option>
-              {BLOCKS.map(b => (
-                <option key={b} value={b}>{b}</option>
-              ))}
-            </select>
-          </div>
-
-          {/* Room */}
-          <div>
-            <label className="block text-xs font-semibold text-gray-500 mb-1">Room</label>
-            <select
-              value={filterRoom}
-              onChange={(e) => setFilterRoom(e.target.value)}
-              className={selectClass}
-            >
-              <option value="">All Rooms</option>
-              {availableRooms.map(r => (
-                <option key={r} value={r}>{r}</option>
-              ))}
-            </select>
-          </div>
         </div>
       </div>
 
       {/* ═══════ Context-Driven Analytics ═══════ */}
       <div className="bg-white rounded-xl border border-gray-200 p-5 mb-8">
-        {/* Scope Label */}
         <div className="flex items-center justify-between mb-4">
           <p className="text-xs font-bold text-gray-500 uppercase tracking-wider">
             Analytics for: <span className="text-gray-800 normal-case">{analytics.scopeLabel}</span>
           </p>
           <span className="text-xs text-gray-400">
-            {filteredAssets.length} asset record{filteredAssets.length !== 1 ? 's' : ''}
+            {analytics.assetRecords} asset record{analytics.assetRecords !== 1 ? 's' : ''}
           </span>
         </div>
 
-        {filteredAssets.length === 0 ? (
+        {analytics.assetRecords === 0 ? (
           <p className="text-sm text-gray-400 italic py-2">No assets match the current filters.</p>
         ) : (
           <>
-            {/* Stat Cards */}
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-4">
               <div className="bg-white rounded-lg p-4 border border-gray-200">
                 <p className="text-gray-500 text-xs font-semibold uppercase tracking-wide mb-1">Total</p>
@@ -344,8 +424,6 @@ const FacilityAssets = ({ onBack, isReadOnly = false }) => {
                 <p className="text-2xl font-bold text-amber-600">{analytics.maintenanceCount}</p>
               </div>
             </div>
-
-            {/* Combined Status Bar */}
             <StatusBar
               total={analytics.totalCount}
               damaged={analytics.damagedCount}
@@ -395,8 +473,8 @@ const FacilityAssets = ({ onBack, isReadOnly = false }) => {
                   className={inputClass}
                 >
                   <option value="">Select Block</option>
-                  {BLOCKS.map(b => (
-                    <option key={b} value={b}>{b}</option>
+                  {API_BLOCKS.map(b => (
+                    <option key={b} value={b}>{displayBlock(b)}</option>
                   ))}
                 </select>
               </div>
@@ -404,15 +482,19 @@ const FacilityAssets = ({ onBack, isReadOnly = false }) => {
               {/* Room */}
               <div>
                 <label className={labelClass}>Room <span className="text-red-500">*</span></label>
-                <input
-                  type="text"
+                <select
                   name="room"
                   value={formData.room}
                   onChange={handleChange}
-                  placeholder="e.g. A01"
                   required
-                  className={inputClass}
-                />
+                  disabled={!formData.block}
+                  className={`${inputClass} ${!formData.block ? 'opacity-50 cursor-not-allowed' : ''}`}
+                >
+                  <option value="">Select Room</option>
+                  {formAvailableRooms.map(r => (
+                    <option key={r} value={r}>{r}</option>
+                  ))}
+                </select>
               </div>
 
               {/* Total Count */}
@@ -441,13 +523,13 @@ const FacilityAssets = ({ onBack, isReadOnly = false }) => {
         </div>
       )}
 
-      {/* ═══════ Assets List — Grouped by Block → Room ═══════ */}
+      {/* ═══════ Room Cards — Grouped by Block → Room ═══════ */}
       {loading ? (
         <div className="text-center py-16">
           <div className="w-10 h-10 border-4 border-blue-200 border-t-blue-600 rounded-full animate-spin mx-auto" />
           <p className="text-gray-500 mt-4 text-sm font-medium">Loading assets…</p>
         </div>
-      ) : filteredAssets.length === 0 ? (
+      ) : Object.keys(visibleRooms).length === 0 ? (
         <div className="text-center py-16 bg-gray-50 rounded-xl border border-gray-200">
           <div className="text-4xl mb-3">📦</div>
           <p className="text-gray-500 text-lg">No assets found</p>
@@ -457,7 +539,7 @@ const FacilityAssets = ({ onBack, isReadOnly = false }) => {
         </div>
       ) : (
         <div className="space-y-8">
-          {Object.entries(groupedAssets)
+          {Object.entries(visibleRooms)
             .sort(([a], [b]) => a.localeCompare(b))
             .map(([blockName, rooms]) => (
             <div key={blockName}>
@@ -465,10 +547,10 @@ const FacilityAssets = ({ onBack, isReadOnly = false }) => {
               <div className="flex items-center gap-3 mb-4">
                 <div className="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center">
                   <span className="text-blue-600 font-bold text-sm">
-                    {blockName === 'Department' ? 'D' : 'A'}
+                    {blockName === 'Department' ? 'M' : 'A'}
                   </span>
                 </div>
-                <h2 className="text-xl font-bold text-gray-900">{blockName} Block</h2>
+                <h2 className="text-xl font-bold text-gray-900">{displayBlock(blockName)}</h2>
                 <span className="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded-full">
                   {Object.keys(rooms).length} room{Object.keys(rooms).length !== 1 ? 's' : ''}
                 </span>
@@ -481,9 +563,9 @@ const FacilityAssets = ({ onBack, isReadOnly = false }) => {
                   .map(([roomName, roomAssets]) => {
                   // Room-level totals
                   const roomTotal = roomAssets.reduce((s, a) => s + a.total, 0);
-                  const roomDamaged = roomAssets.reduce((s, a) => s + (a.damaged || 0), 0);
-                  const roomMaint = roomAssets.reduce((s, a) => s + (a.maintenance || 0), 0);
-                  const roomWorking = roomTotal - roomDamaged - roomMaint;
+                  const roomDamaged = roomAssets.reduce((s, a) => s + a.damaged, 0);
+                  const roomMaint = roomAssets.reduce((s, a) => s + a.maintenance, 0);
+                  const roomWorking = Math.max(0, roomTotal - roomDamaged - roomMaint);
 
                   return (
                     <div
@@ -499,25 +581,31 @@ const FacilityAssets = ({ onBack, isReadOnly = false }) => {
                               {roomAssets.length} asset type{roomAssets.length !== 1 ? 's' : ''}
                             </span>
                           </div>
-                          <div className="flex items-center gap-4 text-xs">
-                            <span className="text-emerald-600 font-semibold">{roomWorking} working</span>
-                            <span className="text-red-600 font-semibold">{roomDamaged} damaged</span>
-                            <span className="text-amber-600 font-semibold">{roomMaint} maintenance</span>
+                          {roomAssets.length > 0 && (
+                            <div className="flex items-center gap-4 text-xs">
+                              <span className="text-emerald-600 font-semibold">{roomWorking} working</span>
+                              <span className="text-red-600 font-semibold">{roomDamaged} damaged</span>
+                              <span className="text-amber-600 font-semibold">{roomMaint} maintenance</span>
+                            </div>
+                          )}
+                        </div>
+                        {roomAssets.length > 0 && (
+                          <div className="mt-2">
+                            <StatusBar total={roomTotal} damaged={roomDamaged} maintenance={roomMaint} />
                           </div>
-                        </div>
-                        <div className="mt-2">
-                          <StatusBar total={roomTotal} damaged={roomDamaged} maintenance={roomMaint} />
-                        </div>
+                        )}
                       </div>
 
-                      {/* Asset Rows */}
-                      <div className="divide-y divide-gray-100">
-                        {roomAssets
-                          .sort((a, b) => a.type.localeCompare(b.type))
-                          .map(asset => {
-                          const working = asset.total - (asset.damaged || 0) - (asset.maintenance || 0);
-
-                          return (
+                      {/* Asset Rows or Empty State */}
+                      {roomAssets.length === 0 ? (
+                        <div className="px-6 py-8 text-center">
+                          <p className="text-gray-400 text-sm italic">No assets in this room</p>
+                        </div>
+                      ) : (
+                        <div className="divide-y divide-gray-100">
+                          {roomAssets
+                            .sort((a, b) => a.type.localeCompare(b.type))
+                            .map(asset => (
                             <div key={asset._id} className="px-6 py-4 flex items-center justify-between hover:bg-gray-50 transition-colors">
                               {/* Left: Asset name */}
                               <div className="flex items-center gap-3 min-w-0 flex-1">
@@ -532,15 +620,15 @@ const FacilityAssets = ({ onBack, isReadOnly = false }) => {
                                 </div>
                                 <div className="text-center min-w-[50px]">
                                   <p className="text-emerald-600 text-xs">Working</p>
-                                  <p className="font-bold text-emerald-600">{working}</p>
+                                  <p className="font-bold text-emerald-600">{asset.working}</p>
                                 </div>
                                 <div className="text-center min-w-[50px]">
                                   <p className="text-red-500 text-xs">Damaged</p>
-                                  <p className="font-bold text-red-600">{asset.damaged || 0}</p>
+                                  <p className="font-bold text-red-600">{asset.damaged}</p>
                                 </div>
                                 <div className="text-center min-w-[50px]">
                                   <p className="text-amber-500 text-xs">Maint.</p>
-                                  <p className="font-bold text-amber-600">{asset.maintenance || 0}</p>
+                                  <p className="font-bold text-amber-600">{asset.maintenance}</p>
                                 </div>
                               </div>
 
@@ -562,9 +650,9 @@ const FacilityAssets = ({ onBack, isReadOnly = false }) => {
                                 </div>
                               )}
                             </div>
-                          );
-                        })}
-                      </div>
+                          ))}
+                        </div>
+                      )}
                     </div>
                   );
                 })}

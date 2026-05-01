@@ -106,17 +106,15 @@ const Classrooms = ({ onBack, isReadOnly = false }) => {
 
     setLoadingRooms(true);
     try {
-      // Normalize block name for comparison
-      const normalizedBlock = block.trim();
-      let url = `classrooms/available-rooms/${encodeURIComponent(normalizedBlock)}`;
+      // MODIFIED: Call backend API which returns available (unassigned) rooms
+      let url = `classrooms/available-rooms/${encodeURIComponent(block)}`;
       if (classroomId) {
         url += `?excludeClassroomId=${classroomId}`;
       }
+      
       const response = await apiClient.get(url);
-      const rooms = (response.data.data || []).filter(room => {
-        // Double-check block matching with case-insensitive comparison
-        return room.block?.toLowerCase() === normalizedBlock.toLowerCase();
-      });
+      // Backend returns array of room strings like ['A01', 'A02', 'GFCL1', etc]
+      const rooms = response.data.data || [];
       setAvailableRooms(rooms);
     } catch (err) {
       console.error('Failed to fetch available rooms:', err);
@@ -519,8 +517,8 @@ const Classrooms = ({ onBack, isReadOnly = false }) => {
                     {loadingRooms ? 'Loading rooms...' : 'Select Room'}
                   </option>
                   {availableRooms.map(room => (
-                    <option key={room._id} value={room._id}>
-                      Room {room.number}
+                    <option key={room} value={room}>
+                      {room}
                     </option>
                   ))}
                 </select>

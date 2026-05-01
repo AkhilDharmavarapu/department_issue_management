@@ -1,5 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { issueAPI } from '../../services/api';
+import { getRoomsForBlock, getBlocksList } from '../../config/roomsConfig';
+import { ASSET_TYPES } from '../../config/assetTypesConfig';
 
 // ──── Constants ────
 
@@ -18,13 +20,19 @@ const PRIORITIES = [
   { value: 'high', label: 'High' },
 ];
 
-const ASSET_TYPES = [
-  'Bench', 'Fan', 'LED Board', 'Projector', 'AC',
-  'Whiteboard', 'Smart Board', 'Computer', 'Chair', 'Desk',
-  'Speaker', 'CCTV', 'Router', 'Printer', 'UPS', 'Other',
-];
+// ──── Imported Constants from Shared Config ────
+// ASSET_TYPES is now imported from assetTypesConfig.js (single source of truth)
+const BLOCK_OPTIONS = getBlocksList();
 
-const BLOCKS = ['Department', 'Algorithm'];
+// MODIFIED: New predefined issue types for infrastructure issues
+const INFRASTRUCTURE_ISSUE_TYPES = [
+  { value: 'washroom-cleanliness', label: 'Washroom Cleanliness' },
+  { value: 'drinking-water', label: 'Drinking Water (RO Malfunction)' },
+  { value: 'electrical-issue', label: 'Electrical Issue' },
+  { value: 'classroom-cleanliness', label: 'Classroom Cleanliness' },
+  { value: 'furniture-damage', label: 'Furniture Damage (Non-asset specific)' },
+  { value: 'other', label: 'Other' },
+];
 
 const ISSUE_TYPES = [
   { value: 'damaged', label: 'Damaged' },
@@ -52,6 +60,8 @@ const INITIAL_FORM = {
   room: '',
   quantity: 1,
   issueType: '',
+  // Infrastructure fields - MODIFIED: Added infrastructureIssueType
+  infrastructureIssueType: '',
   // Academic fields
   subject: '',
   facultyName: '',
@@ -68,6 +78,12 @@ const ReportIssue = ({ onBack }) => {
   const [error, setError] = useState('');
 
   const { category } = formData;
+
+  // MODIFIED: Compute available rooms based on selected block using centralized config
+  const availableRooms = useMemo(() => {
+    if (!formData.block) return [];
+    return getRoomsForBlock(formData.block);
+  }, [formData.block]);
 
   // ──── Handlers ────
 
@@ -115,9 +131,11 @@ const ReportIssue = ({ onBack }) => {
       }
     }
 
+    // MODIFIED: Added infrastructure issue type to payload
     if (category === 'infrastructure') {
       payload.append('block', formData.block);
       payload.append('room', formData.room.trim());
+      payload.append('infrastructureIssueType', formData.infrastructureIssueType);
     }
 
     if (proof) {
@@ -148,9 +166,11 @@ const ReportIssue = ({ onBack }) => {
       if (!formData.issueType) return 'Please select an issue type (damaged/maintenance)';
     }
 
+    // MODIFIED: Added validation for infrastructure issue type
     if (category === 'infrastructure') {
       if (!formData.block) return 'Please select a block';
       if (!formData.room.trim()) return 'Please enter the room number';
+      if (!formData.infrastructureIssueType) return 'Please select an issue type';
     }
 
     if (category === 'academic') {
@@ -229,9 +249,30 @@ const ReportIssue = ({ onBack }) => {
         {/* Form */}
         <form onSubmit={handleSubmit} className="bg-white rounded-xl shadow-sm border border-gray-200">
 
-          {/* ═══════ SECTION 1: Category & Priority ═══════ */}
+          {/* ═══════ SECTION 1: Title ═══════ */}
           <div className="p-6 pb-0">
-            <h3 className="text-lg font-bold text-gray-900 mb-5">1. What type of issue?</h3>
+            <h3 className="text-lg font-bold text-gray-900 mb-5">1. Brief Summary</h3>
+
+            <div className="mb-5">
+              <label className={labelClass}>Title {required}</label>
+              <input
+                type="text"
+                name="title"
+                value={formData.title}
+                onChange={handleChange}
+                placeholder="Brief summary of the issue"
+                minLength="5"
+                required
+                className={inputClass}
+              />
+            </div>
+          </div>
+
+          <div className="border-b border-gray-200 mx-6 my-5" />
+
+          {/* ═══════ SECTION 2: Category & Priority ═══════ */}
+          <div className="p-6 pb-0">
+            <h3 className="text-lg font-bold text-gray-900 mb-5">2. What type of issue?</h3>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-5 mb-2">
               {/* Category */}
@@ -274,169 +315,72 @@ const ReportIssue = ({ onBack }) => {
             )}
           </div>
 
-          <div className="border-b border-gray-200 mx-6 my-5" />
-
-          {/* ═══════ SECTION 2: Title & Description (always shown) ═══════ */}
-          <div className="px-6">
-            <h3 className="text-lg font-bold text-gray-900 mb-5">2. Describe the issue</h3>
-
-            <div className="mb-5">
-              <label className={labelClass}>Title {required}</label>
-              <input
-                type="text"
-                name="title"
-                value={formData.title}
-                onChange={handleChange}
-                placeholder="Brief summary of the issue"
-                minLength="5"
-                required
-                className={inputClass}
-              />
-            </div>
-
-            <div className="mb-2">
-              <label className={labelClass}>Description {required}</label>
-              <textarea
-                name="description"
-                value={formData.description}
-                onChange={handleChange}
-                placeholder="Provide a detailed description of the issue…"
-                minLength="10"
-                rows="5"
-                required
-                className={`${inputClass} resize-none`}
-              />
-            </div>
-          </div>
-
-          {/* ═══════ SECTION 3: Dynamic Fields ═══════ */}
-          {category && category !== 'general' && category !== 'conduct' && (
+          {/* ═══════ SECTION 3: Issue Type (Dynamic based on category) ═══════ */}
+          {category && (
             <>
               <div className="border-b border-gray-200 mx-6 my-5" />
 
-              <div className="px-6">
-                <h3 className="text-lg font-bold text-gray-900 mb-5">
-                  3. {category === 'asset' ? 'Asset Details' : category === 'academic' ? 'Academic Details' : 'Location Details'}
-                </h3>
+              <div className="p-6 pb-0">
+                <h3 className="text-lg font-bold text-gray-900 mb-5">3. Issue Type</h3>
 
-                {/* ──── ASSET FIELDS ──── */}
+                {/* Asset Issue Type */}
                 {category === 'asset' && (
-                  <div className="space-y-5">
-                    {/* Row 1: Asset Type + Issue Type */}
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
-                      <div>
-                        <label className={labelClass}>Asset Type {required}</label>
-                        <select
-                          name="assetType"
-                          value={formData.assetType}
-                          onChange={handleChange}
-                          required
-                          className={inputClass}
-                        >
-                          <option value="">Select Asset</option>
-                          {ASSET_TYPES.map(t => (
-                            <option key={t} value={t}>{t}</option>
-                          ))}
-                        </select>
-                      </div>
-                      <div>
-                        <label className={labelClass}>Issue Type {required}</label>
-                        <select
-                          name="issueType"
-                          value={formData.issueType}
-                          onChange={handleChange}
-                          required
-                          className={inputClass}
-                        >
-                          <option value="">Select Type</option>
-                          {ISSUE_TYPES.map(t => (
-                            <option key={t.value} value={t.value}>{t.label}</option>
-                          ))}
-                        </select>
-                      </div>
-                    </div>
-
-                    {/* Row 2: Block + Room + Quantity */}
-                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
-                      <div>
-                        <label className={labelClass}>Block {required}</label>
-                        <select
-                          name="block"
-                          value={formData.block}
-                          onChange={handleChange}
-                          required
-                          className={inputClass}
-                        >
-                          <option value="">Select Block</option>
-                          {BLOCKS.map(b => (
-                            <option key={b} value={b}>{b}</option>
-                          ))}
-                        </select>
-                      </div>
-                      <div>
-                        <label className={labelClass}>Room {required}</label>
-                        <input
-                          type="text"
-                          name="room"
-                          value={formData.room}
-                          onChange={handleChange}
-                          placeholder="e.g. A01"
-                          required
-                          className={inputClass}
-                        />
-                      </div>
-                      <div>
-                        <label className={labelClass}>Quantity {required}</label>
-                        <input
-                          type="number"
-                          name="quantity"
-                          value={formData.quantity}
-                          onChange={handleChange}
-                          min="1"
-                          required
-                          className={inputClass}
-                        />
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                {/* ──── INFRASTRUCTURE FIELDS ──── */}
-                {category === 'infrastructure' && (
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-5 mb-2">
                     <div>
-                      <label className={labelClass}>Block {required}</label>
+                      <label className={labelClass}>Asset Type {required}</label>
                       <select
-                        name="block"
-                        value={formData.block}
+                        name="assetType"
+                        value={formData.assetType}
                         onChange={handleChange}
                         required
                         className={inputClass}
                       >
-                        <option value="">Select Block</option>
-                        {BLOCKS.map(b => (
-                          <option key={b} value={b}>{b}</option>
+                        <option value="">Select Asset</option>
+                        {ASSET_TYPES.map(t => (
+                          <option key={t} value={t}>{t}</option>
                         ))}
                       </select>
                     </div>
                     <div>
-                      <label className={labelClass}>Room {required}</label>
-                      <input
-                        type="text"
-                        name="room"
-                        value={formData.room}
+                      <label className={labelClass}>Issue Type {required}</label>
+                      <select
+                        name="issueType"
+                        value={formData.issueType}
                         onChange={handleChange}
-                        placeholder="e.g. A01"
                         required
                         className={inputClass}
-                      />
+                      >
+                        <option value="">Select Type</option>
+                        {ISSUE_TYPES.map(t => (
+                          <option key={t.value} value={t.value}>{t.label}</option>
+                        ))}
+                      </select>
                     </div>
                   </div>
                 )}
 
-                {/* ──── ACADEMIC FIELDS ──── */}
+                {/* Infrastructure Issue Type */}
+                {category === 'infrastructure' && (
+                  <div>
+                    <label className={labelClass}>Issue Type {required}</label>
+                    <select
+                      name="infrastructureIssueType"
+                      value={formData.infrastructureIssueType}
+                      onChange={handleChange}
+                      required
+                      className={inputClass}
+                    >
+                      <option value="">Select Issue Type</option>
+                      {INFRASTRUCTURE_ISSUE_TYPES.map(t => (
+                        <option key={t.value} value={t.value}>{t.label}</option>
+                      ))}
+                    </select>
+                  </div>
+                )}
+
+                {/* Academic Category Fields */}
                 {category === 'academic' && (
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-5 mb-2">
                     <div>
                       <label className={labelClass}>Subject {required}</label>
                       <input
@@ -466,14 +410,129 @@ const ReportIssue = ({ onBack }) => {
             </>
           )}
 
+          {/* ═══════ SECTION 4: Location (Block & Room) ═══════ */}
+          {category && (category === 'asset' || category === 'infrastructure') && (
+            <>
+              <div className="border-b border-gray-200 mx-6 my-5" />
+
+              <div className="p-6 pb-0">
+                <h3 className="text-lg font-bold text-gray-900 mb-5">4. Location</h3>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-5 mb-2">
+                      <div>
+                        <label className={labelClass}>Block {required}</label>
+                        <select
+                          name="block"
+                          value={formData.block}
+                          onChange={handleChange}
+                          required
+                          className={inputClass}
+                        >
+                          <option value="">Select Block</option>
+                          {BLOCK_OPTIONS.map(b => (
+                            <option key={b} value={b}>{b}</option>
+                          ))}
+                        </select>
+                      </div>
+                      <div>
+                        <label className={labelClass}>Room {required}</label>
+                        <select
+                          name="room"
+                          value={formData.room}
+                          onChange={handleChange}
+                          required
+                          disabled={!formData.block}
+                          className={`${inputClass} ${!formData.block ? 'opacity-50 cursor-not-allowed' : ''}`}
+                        >
+                          <option value="">Select Room</option>
+                          {availableRooms.map(r => (
+                            <option key={r} value={r}>{r}</option>
+                          ))}
+                        </select>
+                      </div>
+                      <div>
+                        <label className={labelClass}>Quantity {required}</label>
+                        <input
+                          type="number"
+                          name="quantity"
+                          value={formData.quantity}
+                          onChange={handleChange}
+                          min="1"
+                          required
+                          className={inputClass}
+                        />
+                      </div>
+                    </div>
+
+                {/* Infrastructure: Block + Room */}
+                {category === 'infrastructure' && (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-5 mb-2">
+                    <div>
+                      <label className={labelClass}>Block {required}</label>
+                      <select
+                        name="block"
+                        value={formData.block}
+                        onChange={handleChange}
+                        required
+                        className={inputClass}
+                      >
+                        <option value="">Select Block</option>
+                        {BLOCK_OPTIONS.map(b => (
+                          <option key={b} value={b}>{b}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div>
+                      <label className={labelClass}>Room {required}</label>
+                      <select
+                        name="room"
+                        value={formData.room}
+                        onChange={handleChange}
+                        required
+                        disabled={!formData.block}
+                        className={`${inputClass} ${!formData.block ? 'opacity-50 cursor-not-allowed' : ''}`}
+                      >
+                        <option value="">Select Room</option>
+                        {availableRooms.map(r => (
+                          <option key={r} value={r}>{r}</option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </>
+          )}
+
           <div className="border-b border-gray-200 mx-6 my-5" />
 
-          {/* ═══════ SECTION 4: Proof Upload ═══════ */}
+          {/* ═══════ SECTION 5: Description ═══════ */}
+          <div className="p-6 pb-0">
+            <h3 className="text-lg font-bold text-gray-900 mb-5">
+              {category && (category === 'asset' || category === 'infrastructure') ? '5. Detailed Description' : '4. Detailed Description'}
+            </h3>
+
+            <div className="mb-2">
+              <label className={labelClass}>Description {required}</label>
+              <textarea
+                name="description"
+                value={formData.description}
+                onChange={handleChange}
+                placeholder="Provide a detailed description of the issue…"
+                minLength="10"
+                rows="5"
+                required
+                className={`${inputClass} resize-none`}
+              />
+            </div>
+          </div>
+
+          <div className="border-b border-gray-200 mx-6 my-5" />
+
+          {/* ═══════ SECTION 6: Proof Upload ═══════ */}
           <div className="px-6">
             <h3 className="text-lg font-bold text-gray-900 mb-5">
-              {category && category !== 'general' && category !== 'conduct'
-                ? '4. Upload Proof'
-                : '3. Upload Proof'}
+              {category && (category === 'asset' || category === 'infrastructure') ? '6. Upload Proof' : '5. Upload Proof'}
               <span className="text-gray-400 font-normal text-sm ml-2">(optional)</span>
             </h3>
 

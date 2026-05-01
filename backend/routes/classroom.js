@@ -46,7 +46,7 @@ router.get('/available-rooms/:block', authMiddleware, adminOnly, getAvailableRoo
  * Admin only
  * MUST come before /:id route to avoid catching it
  */
-router.get('/:id/students', authMiddleware, adminOnly, getClassroomStudents);
+router.get('/:id/students', authMiddleware, authorize('admin', 'hod'), getClassroomStudents);
 
 /**
  * GET /api/classrooms/:id
